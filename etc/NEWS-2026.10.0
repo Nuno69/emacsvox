@@ -1,0 +1,270 @@
+#    -*- mode: org -*-
+Programming is the art of telling another human being what one wants
+the computer to do.   [[https://www.azquotes.com/quote/964459][(DEK)]]
+
+Emacsvox News -- History Of User-Visible Changes
+
+Maintained by Emacsvox Contributors.
+
+* Emacsvox 2026.10.0 --- Current User-Visible Changes
+
+Released notes are preserved in [[file:NEWS-2026.9.5][NEWS for Emacsvox 2026.9.5]].
+
+** Omnivox 1.17.0 required
+
+This release requires Omnivox 1.17.0 or newer. The Debian package recommends
+that minimum; remote Emacs and WSL installations can use a speech server
+outside the local package manager. Upgrade Omnivox separately: updating
+Emacsvox does not replace an existing speech server.
+
+The guided installers pin the verified 1.17.0 core and matching engine
+modules. TGSpeechBox is included in the Windows x64 and ARM64 core archives,
+and the module manager recognizes it on both architectures. The Windows
+source index includes its matching source and build inputs.
+
+** Use a quieter cue for HTML tables
+
+HTML tables in email and web pages now use a short, soft tick. This shared
+default applies across sound packs, including personal packs, and replaces
+the louder fill-object sound previously used for table boundaries.
+
+** Read tables consistently across text and application buffers
+
+Shared table reading now covers Agent Shell, Markdown, Org and the table
+browser. Contextual Control-Meta arrows enter table reading while ordinary
+prompt input remains editable. Character and word movement follow wrapped
+Agent Shell cells; modified row movement speaks the destination cell.
+Leaving table reading restores ordinary navigation without an unexpected
+structural jump. Collapsed Agent Shell headings receive a cue when read.
+
+** Keep speech preparation and control requests bounded
+
+Speech control requests now belong to the process that issued them, so a
+restart cannot leave requests waiting on a retired worker. List assembly
+preserves the active utterance, and pronunciation replacement always advances
+through the text.
+
+** Keep EAT screen redraws quiet
+
+A screen redraw stays quiet when its text arrives in several chunks. Ordinary
+output resumes after the redraw settles, so a fragmented repaint cannot
+accidentally speak its trailing prompt as new output.
+
+** Speak Agent Shell question forms
+
+Experimental Agent Shell forms now announce questions, field values, required
+status, selections, edits, and answer previews in both shell and viewport
+buffers. Submission, decline, and cancellation receive spoken confirmation.
+Automatic question feedback follows the session speech level. The upstream
+experimental feature remains off by default.
+
+Emacsvox now requires Agent Shell 0.85.3 or newer. Integration tests use 0.86.1
+with Shell Maker 0.97.5. Settings use the newer public APIs when available;
+startup defaults stay quiet, and confirmed setting changes speak once.
+
+** Keep Notmuch refresh feedback interruptible
+
+Explicit mail refresh announcements now queue on the main speech stream even
+when you leave the search buffer before completion. Navigation can interrupt
+the completion cue and count, or a refresh failure, without competing speech
+from the notification stream.
+
+** Advance past partly visible text without repeating it
+
+In short graphical windows, Down no longer consumes a press by scrolling
+ordinary text without moving the cursor and then reading that line again.
+This fixes repeated lines observed in Notmuch messages. Rows taller than the
+window retain native partial scrolling; scrolling preferences are unchanged.
+
+** Keep EAT observation working at the right margin
+
+Terminal output ending exactly at the right margin no longer raises a cursor
+position error or interrupts screen observation.
+
+** Speak EAT output reliably while it scrolls
+
+Large bursts and repeated lines now produce bounded speech even after earlier
+rows leave the screen or scrollback is trimmed. Split chunks and wrapped lines
+are assembled without repeating command input. Automatic output remains limited
+to eight lines and 1,000 characters, with an indication of omitted output.
+
+** Control EAT foreground feedback with C-e C-q
+
+Each terminal now has an independent automatic-feedback toggle. Output requires
+Emacs keyboard focus when detectable, and remains available while editing a
+line-mode draft. Losing focus or switching feedback off discards locally pending
+work; speech already sent may finish. Explicit reading, input feedback, verbosity
+and background monitoring remain independent.
+
+** Recognize EAT prompts without hiding interactive questions
+
+Ready prompts identified by EAT shell integration now give a cue by default.
+Set =emacsvox-eat-prompt-feedback= to =text= or =silent= to change that behavior;
+=C-e q p= explicitly reads the last identified prompt. Split and multiline
+prompts are bounded and redacted. Unmarked remote prompts, password requests,
+and confirmation questions remain ordinary output and speak without a newline.
+
+** Keep EAT terminal bells free of spoken labels
+
+Terminal bells retain their configured sound without speaking "Terminal bell".
+The semantic =command-terminal-bell= event lets an aural rule add a spoken
+label when wanted.
+
+** Describe Agent Shell's merged queue submissions
+
+When Agent Shell submits several queued prompts together, Emacsvox announces
+the number started and the number remaining.
+
+** Disambiguate Agent Shell's grouped settings
+
+Confirmed settings with duplicate names include their group, matching Agent
+Shell's completion choices.
+
+** Speak symbol names cleanly during character navigation
+
+Names such as "left bracket" and "question mark" no longer speak an extra
+asterisk or bracket names. This correction works at every punctuation level
+and does not require an Omnivox update.
+
+** Create named punctuation profiles
+
+In =omnivox-punctuation=, =N= creates a profile inheriting a built-in level;
+edit its character pronunciations, Save, then restart explicitly. Select it with
+=tts-set-punctuations= or a mode policy. Both workers must report matching
+profiles; older or differing servers use the saved built-in fallback.
+
+** Diagnose each speech worker separately
+
+Aural Doctor reports main and notification capabilities, engine availability,
+acknowledged configuration agreement, and configured log locations without
+starting or probing speech. Press =y= to copy the displayed report.
+
+** Edit engine configuration without restarting speech
+
+Open /Engine configuration/ from engine details, or run
+=omnivox-engine-configuration=. Edit independent drafts, register installed
+helpers disabled, save safely, and explicitly Apply saved engine and voice
+settings to both speech workers. Requires the updated local Omnivox service.
+
+** Read tabulated application lists with shared table controls
+
+Control-Meta arrows or =C-e C-t C-r= enter explicit shared reading in ordinary
+tabulated lists. Read full rows and cells, including truncated values and blank
+fields, while retaining application actions. Refresh ends reading, and =q=
+restores ordinary navigation. EWW, table.el and SES are unchanged.
+
+** Read the manual as plain text
+
+Run =make docs-org-text= to export the complete manual as UTF-8 text under
+=.docs-preview/org-manual/emacsvox.txt=. Keys, literals and references now
+use ordinary Org markup, so standard Org text and HTML exports retain them.
+The maintained Info export preserves keyboard formatting and existing nodes.
+Thanks to Lubos Pintes for the plain-text export contribution.
+
+** Use the palette voice for character feedback
+
+Typing and character navigation now use the palette's default voice, including
+physical choices such as eSpeak Max and their fallback tuning. Letter feedback
+retains character speed and uppercase pitch. This requires an updated Omnivox
+server advertising palette character support; older servers keep their legacy
+letter behavior. Punctuation names now also use normal palette speech.
+
+** Replay the voice that delivered a notification
+
+Original playback in Recent Feedback and Feedback Details now uses the engine
+and physical voice reported during delivery, including fallback choices, even
+after changing palettes. This requires a new, completed recording with complete
+voice evidence. Older or incomplete recordings report that original playback
+is unavailable. Resetting the notification server also restores its Omnivox
+configuration and default voice.
+
+** Hear apostrophes when typing or navigating in Org
+
+Character echo and character navigation now identify letters and numbers by
+Unicode category instead of the major mode's word syntax. Straight apostrophes
+in Org are announced as "apostrophe", independently of the prose punctuation
+level. Letter and digit feedback still respects the existing Unicode settings.
+Thanks to Joe Luke for the report and reproduction.
+
+** Review and edit punctuation pronunciations
+
+Open =M-x omnivox-punctuation= or /Punctuation/ in Aural Home's /Voices and
+speech/ group. Review host-provided defaults, edit each existing punctuation
+level, preserve a character or restore its default. Drafts survive leaving the
+screen. Save validates on the local speech host and preserves other settings;
+restart both speech workers separately when ready. File conflicts retain the
+draft. This requires an updated local Omnivox host with punctuation editing.
+
+** Apply a physical voice across a palette
+
+Press =V= on a physical voice in Browse voices or on an eSpeak variant to
+review it across all named voices, including =default=. Update a personal
+palette or create a new independent copy. Existing matching choices are
+promoted with their tuning; shared adjustments and remaining fallbacks are
+preserved. Compare original and proposed voices before one coordinated save,
+with separate Save and apply and Save to collection actions and retry support.
+
+** Edit spoken labels from Feedback Details
+
+Spoken Before and After labels, including =indent 2=, now have individual
+playback controls and links to their named palette voices. Open a field in
+Feedback Details and select Edit named voice indent to tune its voice using
+the recorded label as the preview text. On a label, =O= plays only that label;
+=C= or =r= opens its named voice editor. Original recordings remain unchanged.
+
+** Default reading voice in palettes
+
+Each voice palette now includes =default= for ordinary reading. In eSpeak's
+Voice variants browser, select Max, press =u=, and choose your palette and
+=default=. Preview it and use Save and apply in the existing editor. The
+choice, fallbacks and tuning belong to that palette and follow palette
+switches on both speech streams. Other named voices keep their own settings.
+Use at Startup remains the separate action for choosing a startup palette.
+
+** Notmuch thread reading and EAT history feedback
+
+Opening a Notmuch thread now selects its newest open, matching unread
+message. When none is unread, it keeps Notmuch's initial selection.
+Reading a sender line after a folded quote no longer goes silent when Emacs
+leaves point in the preceding hidden text.
+
+EAT line-mode history navigation speaks the recalled command without also
+announcing the history-item counter or input-restored message. Those messages
+remain visible in the echo area; unrelated messages and errors are preserved.
+
+** Native Windows installation
+
+The native Windows x64 installer can download a verified complete GNU Emacs
+with =-DownloadEmacs=. Use =-Offline= with a prepared archive cache to install
+without network access. Existing explicit Emacs selections are preserved.
+
+Development Windows Setup builds add a per-user wizard, Start menu and
+optional desktop shortcuts, repair and uninstall. Uninstall preserves the
+user's profile, logs and downloaded voices by default, with separate optional
+cleanup choices and an explanation of any retained shared voices. The wizard
+names the bundled versions, uses Emacsvox Windows for shortcuts, and explains
+launch and uninstall when installation finishes.
+
+** Welcome screen
+
+An idle first startup offers speech testing, rate and output settings, voices,
+the tutorial and manual. The startup toggle is saved per Emacs profile.
+Reopen the screen with C-h W or M-x emacsvox-welcome.
+
+** Agent Shell
+
+Agent Shell support keeps brackets editable at the persistent prompt
+while the agent works. Viewport submission feedback distinguishes queueing
+from steering, including the override command and unsupported-steering
+fallback. Full header speech includes the optional cumulative cost indicator.
+Reading a busy live prompt briefly says "Agent busy" or "Waiting for
+permission", without repeating how input will be submitted.
+
+Rendered table borders are omitted from response and line speech, preventing
+decorative box-drawing characters from forcing an Eloquence-to-eSpeak switch.
+Literal box-drawing characters now receive Unicode names through the existing
+emoji and symbol naming settings.
+Control-Meta-Left and Control-Meta-Right move between table columns; plain Left
+and Right retain character navigation.
+Outside editable input, t and T jump to the next and previous rendered table.
+Both keys insert normally in live prompts and the viewport editor.
