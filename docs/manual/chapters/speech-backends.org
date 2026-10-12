@@ -1342,6 +1342,17 @@ an optional Omnivox engine and model workflow, not a primary Emacsvox server.
 :DESCRIPTION: Locate failures and authoritative detail.
 :END:
 
+Local speech-server messages and errors are retained in diagnostic buffers.
+These buffers are hidden from the standard buffer list by default.  Use
+~M-x tts-show-diagnostics~ and choose =Speaker= for main speech or =Notify=
+for notifications to inspect them.  The command reports when no local
+diagnostics are available.
+
+To include these buffers in the standard buffer list, customize
+=tts-hide-diagnostic-buffers= to =nil=, then run ~M-x tts-restart~.  Changing
+this setting preserves existing diagnostics.  Custom buffer switchers may
+list hidden buffers too.
+
 Use the boundary at which speech failed to choose the next diagnostic:
 
 #+attr_texinfo: :indic asis :compact t

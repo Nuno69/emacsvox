@@ -1503,6 +1503,15 @@ use their existing isolated-letter behavior."
 (defvar-local tts-strip-octals nil
   "Strip all octal chars. ")
 
+(defcustom tts-hide-diagnostic-buffers t
+  "Hide local speech-server diagnostic buffers from the standard buffer list.
+When non-nil, their names start with a space.  Custom buffer switchers
+may still list them.  Diagnostics are retained in either case; use
+`tts-show-diagnostics' to inspect them.
+Changes take effect when you restart speech with `tts-restart'."
+  :type 'boolean
+  :group 'tts)
+
 (defcustom tts-speech-rate-base
   (if (string-match "dtk" tts-program) 180 50)
   "Value of lowest speech rate."
@@ -3860,6 +3869,37 @@ platforms prefer a bundled launcher and fall back to `exec-path'."
      ((file-executable-p bundled) bundled)
      ((executable-find program)))))
 
+(defun tts--diagnostic-buffer (name &optional create)
+  "Return the local speech diagnostic buffer for process NAME.
+When CREATE is non-nil, create it if needed and apply
+`tts-hide-diagnostic-buffers', preserving any existing contents."
+  (let* ((visible (format "*%s diagnostics*" name))
+         (hidden (concat " " visible))
+         (preferred (if tts-hide-diagnostic-buffers hidden visible))
+         (buffer (or (get-buffer preferred)
+                     (get-buffer (if tts-hide-diagnostic-buffers visible hidden)))))
+    (when create
+      (if buffer
+          (with-current-buffer buffer
+            (unless (equal (buffer-name) preferred)
+              (rename-buffer preferred)))
+        (setq buffer (get-buffer-create preferred))))
+    buffer))
+
+(defun tts-show-diagnostics (name)
+  "Show retained local speech-server diagnostics for NAME.
+Choose Speaker for main speech or Notify for notifications.
+Signal a user error if no diagnostic buffer is available."
+  (interactive
+   (list (completing-read "Speech diagnostics: " '("Speaker" "Notify")
+                          nil t nil nil "Speaker")))
+  (unless (member name '("Speaker" "Notify"))
+    (user-error "Choose Speaker or Notify diagnostics"))
+  (let ((buffer (tts--diagnostic-buffer name)))
+    (unless buffer
+      (user-error "No local %s diagnostics are available" name))
+    (pop-to-buffer buffer)))
+
 (defun tts-make-process (name)
   "Make a  TTS process called name."
   
@@ -3883,7 +3923,7 @@ platforms prefer a bundled launcher and fall back to `exec-path'."
                  (make-process
                   :name name :command (omnivox-library--command program) :connection-type 'pipe
                   :coding 'utf-8-unix
-                  :stderr (get-buffer-create (format "*%s diagnostics*" name))))) nil)))
+                  :stderr (tts--diagnostic-buffer name t)))) nil)))
     (when (and (boundp 'omnivox-library--birth-collector) omnivox-library--birth-collector)
       (funcall omnivox-library--birth-collector process))
     (unless (process-live-p process) (error "Fail: Speech Server"))

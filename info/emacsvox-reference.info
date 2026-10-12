@@ -16,7 +16,7 @@ Indirect:
 emacsvox-reference.info-1: 397
 emacsvox-reference.info-2: 309027
 emacsvox-reference.info-3: 602487
-emacsvox-reference.info-4: 1074518
+emacsvox-reference.info-4: 1075422
 
 Tag Table:
 (Indirect)
@@ -336,14 +336,14 @@ Node: swiftmac-voices684305
 Node: tetris684551
 Node: tts-queue-state684710
 Node: tts-speak685033
-Node: voice-defs701558
-Node: voice-setup707207
-Node: xbacklight710356
-Node: URL Templates711531
-Node: Reference Concept Index716830
-Node: Key Index717014
-Node: Function Index749224
-Node: Variable Index1074518
+Node: voice-defs702316
+Node: voice-setup707965
+Node: xbacklight711114
+Node: URL Templates712289
+Node: Reference Concept Index717588
+Node: Key Index717772
+Node: Function Index749982
+Node: Variable Index1075422
 
 End Tag Table
 

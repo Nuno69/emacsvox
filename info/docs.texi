@@ -71,7 +71,7 @@
 
 @include intro-docs.texi
 
-This chapter documents a total of 1628 commands and 226 options.
+This chapter documents a total of 1629 commands and 227 options.
 
 @menu
 * amixer:: Set Audio Volume from Emacs.
@@ -26827,6 +26827,19 @@ current local  value to the result.
 @end format
 @end deffn
 
+@subsubsection tts-show-diagnostics
+@deffn {Command} tts-show-diagnostics  (name)
+@findex tts-show-diagnostics
+
+@format
+Show retained local speech-server diagnostics for NAME.
+Choose Speaker for main speech or Notify for notifications.
+Signal a user error if no diagnostic buffer is available.
+
+(fn NAME)
+@end format
+@end deffn
+
 @subsubsection tts-speak-version
 @deffn {Command} tts-speak-version
 @table @kbd
@@ -27033,6 +27046,24 @@ Default Value:
 @verbatim
 
 "cloud-outloud"
+
+@end verbatim
+
+@end defvar
+
+@defvar {User Option} tts-hide-diagnostic-buffers
+@verbatim
+Hide local speech-server diagnostic buffers from the standard buffer list.
+When non-nil, their names start with a space.  Custom buffer switchers
+may still list them.  Diagnostics are retained in either case; use
+‘tts-show-diagnostics’ to inspect them.
+Changes take effect when you restart speech with ‘tts-restart’.
+@end verbatim
+
+Default Value:
+@verbatim
+
+t
 
 @end verbatim
 

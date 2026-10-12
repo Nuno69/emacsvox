@@ -2572,6 +2572,17 @@ an optional Omnivox engine and model workflow@comma{} not a primary Emacsvox ser
 @node Backend Diagnostics And Ownership
 @section Backend Diagnostics And Responsibilities
 
+Local speech-server messages and errors are retained in diagnostic buffers.
+These buffers are hidden from the standard buffer list by default.  Use
+@kbd{M-x tts-show-diagnostics} and choose @code{Speaker} for main speech or @code{Notify}
+for notifications to inspect them.  The command reports when no local
+diagnostics are available.
+
+To include these buffers in the standard buffer list@comma{} customize
+@code{tts-hide-diagnostic-buffers} to @code{nil}@comma{} then run @kbd{M-x tts-restart}.  Changing
+this setting preserves existing diagnostics.  Custom buffer switchers may
+list hidden buffers too.
+
 Use the boundary at which speech failed to choose the next diagnostic:
 
 @table @asis

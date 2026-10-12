@@ -218,40 +218,94 @@
    :type 'error))
 
 (ert-deftest emacsvox-tts-local-process-separates-server-diagnostics ()
-  "A local server's stderr never reaches its protocol output filter."
-  (let* ((name "Emacsvox test speech")
-         (diagnostics (format "*%s diagnostics*" name))
-         (start (symbol-function 'make-process))
-         (emacs (expand-file-name invocation-name invocation-directory))
-         process output)
+  "Diagnostics stay separate and startup preserves focus in both visibility modes."
+  (dolist (hidden '(t nil))
+    (let* ((tts-hide-diagnostic-buffers hidden)
+           (name "Emacsvox test speech")
+           (diagnostics (concat (if hidden " " "")
+                                (format "*%s diagnostics*" name)))
+           (start (symbol-function 'make-process))
+           (emacs (expand-file-name invocation-name invocation-directory))
+           (origin (current-buffer))
+           (window (selected-window))
+           (layout (current-window-configuration))
+           process output)
+      (unwind-protect
+          (cl-letf
+              (((symbol-function 'omnivox-remote-enabled-p) (lambda () nil))
+               ((symbol-function 'tts--resolve-program) (lambda (_) emacs))
+               ((symbol-function 'make-process)
+                (lambda (&rest arguments)
+                  (apply start
+                         (plist-put
+                          arguments :command
+                          (list emacs "-Q" "--batch" "--eval"
+                                (prin1-to-string
+                                 '(progn
+                                    (princ "Backend diagnostic" 'external-debugging-output)
+                                    (princ "protocol output\n")))))))))
+            (setq process (tts-make-process name))
+            (set-process-filter
+             process (lambda (_ chunk) (setq output (concat output chunk))))
+            (let ((deadline (+ (float-time) 10)))
+              (while (and (process-live-p process) (< (float-time) deadline))
+                (accept-process-output process 0.05)))
+            (should-not (process-live-p process))
+            (accept-process-output nil 0.1)
+            (should (equal output "protocol output\n"))
+            (should
+             (with-current-buffer diagnostics
+               (string-match-p "Backend diagnostic" (buffer-string))))
+            (should (eq origin (current-buffer)))
+            (should (eq window (selected-window)))
+            (should (compare-window-configurations
+                     layout (current-window-configuration)))
+            (with-current-buffer (list-buffers-noselect)
+              (goto-char (point-min))
+              (should (eq (not hidden)
+                          (not (null (search-forward diagnostics nil t)))))))
+        (when (processp process) (delete-process process))
+        (when (get-buffer diagnostics) (kill-buffer diagnostics))))))
+
+(ert-deftest emacsvox-tts-diagnostics-preserve-output-across-visibility-changes ()
+  "Changing visibility reuses the buffer and retains diagnostic output."
+  (let* ((name "Emacsvox test visibility")
+         (tts-hide-diagnostic-buffers nil)
+         (buffer (tts--diagnostic-buffer name t)))
     (unwind-protect
-        (cl-letf
-            (((symbol-function 'omnivox-remote-enabled-p) (lambda () nil))
-             ((symbol-function 'tts--resolve-program) (lambda (_) emacs))
-             ((symbol-function 'make-process)
-              (lambda (&rest arguments)
-                (apply start
-                       (plist-put
-                        arguments :command
-                        (list emacs "-Q" "--batch" "--eval"
-                              (prin1-to-string
-                               '(progn
-                                  (princ "Backend diagnostic" 'external-debugging-output)
-                                  (princ "protocol output\n")))))))))
-          (setq process (tts-make-process name))
-          (set-process-filter
-           process (lambda (_ chunk) (setq output (concat output chunk))))
-          (let ((deadline (+ (float-time) 10)))
-            (while (and (process-live-p process) (< (float-time) deadline))
-              (accept-process-output process 0.05)))
-          (should-not (process-live-p process))
-          (accept-process-output nil 0.1)
-          (should (equal output "protocol output\n"))
-          (should
-           (with-current-buffer diagnostics
-             (string-match-p "Backend diagnostic" (buffer-string)))))
-      (when (processp process) (delete-process process))
-      (when (get-buffer diagnostics) (kill-buffer diagnostics)))))
+        (progn
+          (with-current-buffer buffer (insert "Retained error\n"))
+          (dolist (hidden '(t nil t))
+            (setq tts-hide-diagnostic-buffers hidden)
+            ;; Lookup works before restarting speech applies the new setting.
+            (should (eq buffer (tts--diagnostic-buffer name)))
+            (should (eq buffer (tts--diagnostic-buffer name t)))
+            (should (equal (buffer-name buffer)
+                           (concat (if hidden " " "")
+                                   "*Emacsvox test visibility diagnostics*")))
+            (should (equal (with-current-buffer buffer (buffer-string))
+                           "Retained error\n"))))
+      (kill-buffer buffer))))
+
+(ert-deftest emacsvox-tts-show-diagnostics-opens-selected-stream ()
+  "Explicit inspection opens either stream and reports unavailable diagnostics."
+  (save-window-excursion
+    (let ((speaker (generate-new-buffer " *Emacsvox test speaker diagnostics*"))
+          (notify (generate-new-buffer " *Emacsvox test notify diagnostics*")))
+      (unwind-protect
+          (cl-letf (((symbol-function 'tts--diagnostic-buffer)
+                     (lambda (name &optional _create)
+                       (pcase name ("Speaker" speaker) ("Notify" notify)))))
+            (dolist (entry `(("Speaker" . ,speaker) ("Notify" . ,notify)))
+              (tts-show-diagnostics (car entry))
+              (should (eq (window-buffer (selected-window)) (cdr entry)))))
+        (kill-buffer speaker)
+        (kill-buffer notify)))
+    (cl-letf (((symbol-function 'tts--diagnostic-buffer) (lambda (&rest _) nil)))
+      (let ((layout (current-window-configuration)))
+        (should-error (tts-show-diagnostics "Speaker") :type 'user-error)
+        (should (compare-window-configurations
+                 layout (current-window-configuration)))))))
 
 (ert-deftest emacsvox-tts-omnivox-selects-voice-on-both-streams ()
   "Physical voice selection updates speaker and notification processes."
