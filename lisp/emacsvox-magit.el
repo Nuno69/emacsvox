@@ -1671,7 +1671,8 @@ Only present the invocation that applies the transient's selected values."
 
 (defun emacsvox-magit--present-staging-result
     (target section subject results &optional error-p)
-  "Present TARGET's RESULTS for the original SECTION and SUBJECT."
+  "Present TARGET's RESULTS or the refreshed Magit destination.
+SECTION and SUBJECT identify the original selection for outcome messages."
   (let* ((unstage (memq target '(magit-unstage magit-unstage-files
                                 magit-unstage-all magit-file-unstage)))
          (verb (if unstage "unstage" "stage"))
@@ -1685,12 +1686,16 @@ Only present the invocation that applies the transient's selected values."
     (when changed
       (setq facts (plist-put facts :states
                              (list (if unstage 'unstaged 'staged)))))
-    (emacsvox-magit--submit-text
-     (cond (failed (format "Failed to %s %s" verb subject))
-           (changed (format "%s %s" (if unstage "Unstaged" "Staged") subject))
-           (t (format "No changes %s" (if unstage "unstaged" "staged"))))
-     (append facts (list :vcs-operation target))
-     'state-change (if changed 'select-object 'warn-user))))
+    (if (and changed (derived-mode-p 'magit-mode))
+        ;; Describe the destination without assigning the previous selection's
+        ;; staged or unstaged state to the section now at point.
+        (emacsvox-magit-present-line 'select-object 'navigation)
+      (emacsvox-magit--submit-text
+       (cond (failed (format "Failed to %s %s" verb subject))
+             (changed (format "%s %s" (if unstage "Unstaged" "Staged") subject))
+             (t (format "No changes %s" (if unstage "unstaged" "staged"))))
+       (append facts (list :vcs-operation target))
+       'state-change (if changed 'select-object 'warn-user)))))
 
 (defun emacsvox-magit--call-checked-operation (original target arguments)
   "Run ORIGINAL for TARGET with ARGUMENTS, then present the observed outcome."

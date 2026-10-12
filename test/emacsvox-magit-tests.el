@@ -2262,6 +2262,133 @@
     (should (equal (plist-get (plist-get (cdar emacsvox-magit-test--calls) :facts)
                               :events) '(entry-unstaged)))))
 
+(defun emacsvox-magit-test--check-staging-destination (command)
+  "Run COMMAND and check that speech describes the refreshed destination once."
+  (setq emacsvox-magit-test--calls nil)
+  (let ((key (kbd (if (eq command 'magit-stage) "s" "u"))))
+    (should (eq (key-binding key) command))
+    (execute-kbd-macro key))
+  (redisplay t)
+  (should (= (length emacsvox-magit-test--calls) 1))
+  (let* ((call (car emacsvox-magit-test--calls))
+         (line (buffer-substring-no-properties
+                (line-beginning-position) (line-end-position)))
+         (facts (plist-get (cdr call) :facts)))
+    (should-not (string-empty-p line))
+    (should (string-prefix-p line (substring-no-properties (car call))))
+    (should (eq (plist-get (cdr call) :occasion) 'navigation))
+    (should (equal (plist-get facts :events) '(focus-entered)))
+    (should (eq (plist-get facts :section-kind)
+                (oref (magit-current-section) type)))
+    (should-not (plist-get facts :states))))
+
+(ert-deftest emacsvox-magit-real-staging-speaks-next-file-and-final-destination ()
+  "Staging a middle file and removing the last file speak the refreshed point."
+  (save-window-excursion
+    (emacsvox-magit-test--with-repository
+      (dolist (file '("01-first.txt" "02-middle.txt" "03-last.txt"))
+        (write-region "new\n" nil file nil 'silent))
+      (let ((magit-inhibit-refresh nil))
+        (switch-to-buffer (magit-status-setup-buffer directory))
+        (magit-section-show (magit-get-section '((untracked) (status))))
+        (dolist (file '("02-middle.txt" "03-last.txt" "01-first.txt"))
+          (let ((section (magit-get-section `((file . ,file) (untracked) (status)))))
+            (should section)
+            (goto-char (oref section start))
+            (emacsvox-magit-test--check-staging-destination 'magit-stage)
+            (should-not (magit-get-section `((file . ,file) (untracked) (status))))
+            (should (member file (magit-staged-files)))))
+        (should-not (magit-get-section '((untracked) (status))))))))
+
+(ert-deftest emacsvox-magit-real-unstaging-speaks-refreshed-destination ()
+  "Unstaging reads the reached section without labelling it as unstaged."
+  (save-window-excursion
+    (emacsvox-magit-test--with-repository
+      (write-region "modified\n" nil "sample.txt" nil 'silent)
+      (emacsvox-magit-test--git "add" "sample.txt")
+      (let ((magit-inhibit-refresh nil))
+        (switch-to-buffer (magit-status-setup-buffer directory))
+        (let ((section (magit-get-section '((file . "sample.txt") (staged) (status)))))
+          (should section)
+          (goto-char (oref section start)))
+        (emacsvox-magit-test--check-staging-destination 'magit-unstage)
+        (should-not (magit-staged-files))
+        (should (equal (magit-unstaged-files) '("sample.txt")))))))
+
+(ert-deftest emacsvox-magit-real-hunk-staging-speaks-remaining-hunk ()
+  "Hunk staging and unstaging speak the destination after a real refresh."
+  (save-window-excursion
+    (emacsvox-magit-test--with-repository
+      (with-temp-file "sample.txt"
+        (dotimes (i 30) (insert (format "line %d\n" i))))
+      (emacsvox-magit-test--git "add" "sample.txt")
+      (emacsvox-magit-test--git "commit" "-qm" "Two hunk fixture")
+      (with-temp-file "sample.txt"
+        (dotimes (i 30)
+          (insert (if (memq i '(2 25)) (format "changed %d\n" i)
+                    (format "line %d\n" i)))))
+      (let ((magit-inhibit-refresh nil))
+        (switch-to-buffer (magit-status-setup-buffer directory))
+        (let ((file (magit-get-section '((file . "sample.txt") (unstaged) (status)))))
+          (should file)
+          (magit-section-show file)
+          (should (= (length (oref file children)) 2))
+          (goto-char (oref (car (oref file children)) start)))
+        (emacsvox-magit-test--check-staging-destination 'magit-stage)
+        (should (eq (oref (magit-current-section) type) 'hunk))
+        (should (string-match-p "changed 2\n"
+                                (emacsvox-magit-test--git "diff" "--cached")))
+        (should-not (string-match-p "changed 25"
+                                    (emacsvox-magit-test--git "diff" "--cached")))
+        (should (string-match-p "changed 25"
+                                (emacsvox-magit-test--git "diff")))
+        (let ((file (magit-get-section '((file . "sample.txt") (staged) (status)))))
+          (should file)
+          (magit-section-show file)
+          (goto-char (oref (car (oref file children)) start)))
+        (emacsvox-magit-test--check-staging-destination 'magit-unstage)
+        (should-not (magit-staged-files))
+        (should (string-match-p "changed 2\n"
+                                (emacsvox-magit-test--git "diff")))))))
+
+(ert-deftest emacsvox-magit-real-staging-view-keeps-failure-and-no-change-feedback ()
+  "Unsuccessful staging in a Magit view still reports the outcome explicitly."
+  (dolist (failure '(nil t))
+    (save-window-excursion
+      (emacsvox-magit-test--with-repository
+        (when failure
+          (write-region "modified\n" nil "sample.txt" nil 'silent)
+          (write-region "" nil ".git/index.lock" nil 'silent))
+        (let ((magit-inhibit-refresh nil))
+          (switch-to-buffer (magit-status-setup-buffer directory))
+          (setq emacsvox-magit-test--calls nil)
+          (if failure
+              (funcall-interactively #'magit-stage-modified)
+            ;; A command that returns without invoking Git has no outcome
+            ;; to treat as successful, even in a populated Magit view.
+            (let ((ems--interactive-fn-name 'magit-stage))
+              (emacsvox-magit--call-checked-operation
+               #'ignore 'magit-stage nil)))
+          (should (equal (mapcar #'car emacsvox-magit-test--calls)
+                         (list (if failure "Failed to stage changes"
+                                 "No changes staged"))))
+          (should (eq (plist-get (cdar emacsvox-magit-test--calls) :occasion)
+                      'state-change))
+          (should-not (magit-staged-files)))))))
+
+(ert-deftest emacsvox-magit-real-file-buffer-staging-keeps-confirmation ()
+  "File commands retain outcome feedback when there is no Magit destination."
+  (emacsvox-magit-test--with-repository
+    (write-region "modified\n" nil "sample.txt" nil 'silent)
+    (let ((buffer-file-name (expand-file-name "sample.txt")))
+      (funcall-interactively #'magit-file-stage)
+      (should (equal (mapcar #'car emacsvox-magit-test--calls)
+                     (list (concat "Staged " buffer-file-name))))
+      (setq emacsvox-magit-test--calls nil)
+      (funcall-interactively #'magit-file-unstage)
+      (should (equal (mapcar #'car emacsvox-magit-test--calls)
+                     (list (concat "Unstaged " buffer-file-name)))))))
+
 (ert-deftest emacsvox-magit-real-stage-failure-never-emits-staged ()
   (emacsvox-magit-test--with-repository
     (write-region "modified\n" nil "sample.txt" nil 'silent)

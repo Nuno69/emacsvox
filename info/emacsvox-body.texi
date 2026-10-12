@@ -5646,8 +5646,10 @@ the voice assigned to the @code{magit-hash} face changes this consistently for b
 navigation and explicit reading.  Moving the section highlight preserves that
 choice.
 
-Staging and unstaging report their outcome after Git finishes@comma{} including
-failures.  Branch checkout@comma{} branch and remote renaming@comma{} remote removal@comma{} and
+After successful staging or unstaging in a Magit view@comma{} speech reads the line
+or section where point lands after the refresh.  Failures are still reported
+explicitly.  Staging and unstaging from an ordinary file buffer still confirm
+the outcome.  Branch checkout@comma{} branch and remote renaming@comma{} remote removal@comma{} and
 stash creation also announce their results.  Repository-list fetching reports
 partial failures when some repositories fail.  Background process completion
 uses the notification lane@comma{} while entering status and navigating use the main
@@ -9076,6 +9078,13 @@ starts and waits for contributes only to the collector attached when it was
 started; unrelated process callbacks cannot change that result.  Uncollected
 asynchronous completions explicitly select the notification lane.  Neither a
 command's return value nor the absence of an Emacs error proves Git succeeded.
+
+Successful staging and unstaging in a Magit view present the refreshed line
+with destination section facts and a @code{focus-entered} event.  The destination
+does not inherit the original selection's staged or unstaged state.  Failures@comma{}
+commands that run no Git operation@comma{} and commands outside Magit views retain
+outcome messages.  Regression coverage enables real refreshes for file and hunk
+staging and unstaging@comma{} including removal of the last file in a section.
 
 Magit's positional highlight overlays must not become source personalities.
 The integration suppresses legacy overlay voice mirroring for those highlights

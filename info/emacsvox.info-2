@@ -2795,6 +2795,14 @@ cannot change that result.  Uncollected asynchronous completions
 explicitly select the notification lane.  Neither a command's return
 value nor the absence of an Emacs error proves Git succeeded.
 
+   Successful staging and unstaging in a Magit view present the
+refreshed line with destination section facts and a ‘focus-entered’
+event.  The destination does not inherit the original selection's staged
+or unstaged state.  Failures, commands that run no Git operation, and
+commands outside Magit views retain outcome messages.  Regression
+coverage enables real refreshes for file and hunk staging and unstaging,
+including removal of the last file in a section.
+
    Magit's positional highlight overlays must not become source
 personalities.  The integration suppresses legacy overlay voice
 mirroring for those highlights and excludes their faces from source

@@ -5710,12 +5710,14 @@ silent by default; changing the voice assigned to the ‘magit-hash’ face
 changes this consistently for both navigation and explicit reading.
 Moving the section highlight preserves that choice.
 
-   Staging and unstaging report their outcome after Git finishes,
-including failures.  Branch checkout, branch and remote renaming, remote
-removal, and stash creation also announce their results.
-Repository-list fetching reports partial failures when some repositories
-fail.  Background process completion uses the notification lane, while
-entering status and navigating use the main speech lane.
+   After successful staging or unstaging in a Magit view, speech reads
+the line or section where point lands after the refresh.  Failures are
+still reported explicitly.  Staging and unstaging from an ordinary file
+buffer still confirm the outcome.  Branch checkout, branch and remote
+renaming, remote removal, and stash creation also announce their
+results.  Repository-list fetching reports partial failures when some
+repositories fail.  Background process completion uses the notification
+lane, while entering status and navigating use the main speech lane.
 
    Section visibility commands describe the resulting collapsed,
 expanded, or partly expanded state.  Copying a heading without a value
