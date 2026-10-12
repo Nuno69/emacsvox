@@ -392,6 +392,7 @@ To leave, press \\[keyboard-quit]."
          (setq continue nil)))
      (message "Leaving learn mode "))))
 
+;;;###autoload
 (defun emacsvox-describe-emacsvox ()
   "Give a brief overview of emacsvox."
   (interactive)

@@ -57,6 +57,35 @@
                     (error "Tips is not an interactive command at startup")))))))
         (unless (eq status 0) (ert-fail (buffer-string)))))))
 
+(ert-deftest emacsvox-startup-overview-command-autoloads ()
+  "The overview shortcut opens Help without preloading the utilities library."
+  (let ((emacs (expand-file-name invocation-name invocation-directory))
+        (lisp (expand-file-name "lisp/" emacsvox-startup-tests--root)))
+    (with-temp-buffer
+      (let ((status
+             (call-process
+              emacs nil t nil "-Q" "--batch" "-L" lisp
+              "-l" (expand-file-name "emacsvox-preamble.el" lisp)
+              "-l" (expand-file-name "emacsvox-loaddefs.el" lisp)
+              "-l" (expand-file-name "emacsvox.el" lisp)
+              "--eval"
+              (prin1-to-string
+               '(progn
+                  (when (featurep 'emacsvox-wizards)
+                    (error "Utilities were unexpectedly loaded"))
+                  ;; Exercise command dispatch and Help while keeping the
+                  ;; fresh process disconnected from the speech backend.
+                  (advice-add 'tts-set-punctuations :override #'ignore)
+                  (advice-add 'tts-speak :override #'ignore)
+                  (advice-add 'emacsvox-speak-buffer :override #'ignore)
+                  (call-interactively (key-binding (kbd "C-h C-e")))
+                  (unless (and (derived-mode-p 'help-mode)
+                               (save-excursion
+                                 (goto-char (point-min))
+                                 (search-forward "emacsvox" nil t)))
+                    (error "Overview did not display Emacsvox help")))))))
+        (unless (eq status 0) (ert-fail (buffer-string)))))))
+
 (ert-deftest emacsvox-setup-detects-newer-startup-source ()
   "The setup entry point identifies byte-code that can shadow new source."
   (let* ((directory (make-temp-file "emacsvox-setup-stale-" t))
