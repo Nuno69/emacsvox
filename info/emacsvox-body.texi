@@ -1017,8 +1017,37 @@ Toggle capitalization indication with the lowercase key.  Use the uppercase
 key to preview and choose whether capitals use speech@comma{} a tone@comma{} both@comma{} a custom
 rule@comma{} or no added indication.
 @item C-e d i / C-e d I
-Toggle indentation feedback with the lowercase key.  Use the uppercase key
-to preview spoken-column and tonal choices.
+Toggle indentation feedback with the lowercase key.  The uppercase key opens
+the Indentation menu. Choose spoken columns with @kbd{s}@comma{} pitch tones with @kbd{p}@comma{}
+or duration tones with @kbd{d}. Capital @kbd{P} and @kbd{D} combine speech and tones.
+Choose @kbd{b} for tones before speech or @kbd{a} for tones alongside speech.
+Timing choices are unavailable for presentations without built-in tones.
+
+Press @kbd{g} to switch between @emph{Current buffer} and @emph{Global defaults}. Global
+defaults affect buffers without their own choices; existing local settings
+stay in place. A prefix argument opens the menu in Global defaults scope.
+Press @kbd{e} to toggle indentation feedback in the selected scope.
+
+Press @kbd{v} to enter tone volume from 0 to 100@comma{} or @kbd{-} and @kbd{+} to change it
+in steps of five. Volume always affects all main-stream Omnivox tones@comma{}
+even while editing current-buffer settings.
+
+Changes take effect immediately. @kbd{@key{SPC}} previews four-column indentation
+with the settings shown@comma{} even when feedback is off. @kbd{q} closes the menu
+and keeps your changes. In Global defaults scope@comma{} @kbd{S} saves indentation
+defaults and tone volume across sessions. Closing without saving leaves
+the defaults changed only for this session.
+
+You can still choose a presentation directly with
+@kbd{M-x emacsvox-set-indentation-presentation}.
+@item C-e d T
+Choose and preview whether indentation tones play @emph{Alongside speech} (the
+default) or @emph{Before speech}.  This changes the current buffer; use a prefix
+argument to also change the default for other buffers.  To save your choice
+across sessions@comma{} customize @kbd{emacsvox-indentation-tone-timing}.  Timing does
+not change your spoken-column or tonal presentation choice@comma{} or enable
+indentation feedback.  Backends without overlay support play tones before
+speech for either setting.
 @end table
 
 Character-rate scaling@comma{} text chunking@comma{} engine-specific controls@comma{} and reusable

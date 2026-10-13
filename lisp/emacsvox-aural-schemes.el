@@ -1867,7 +1867,7 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+            :audio-mode overlay
             :anchor transition))))
         (:id core-indentation-pitch-tone
          :match
@@ -1880,7 +1880,7 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+            :audio-mode overlay
             :anchor transition))))
         (:id core-indentation-spoken-duration-tone
          :match
@@ -1898,7 +1898,7 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+            :audio-mode overlay
             :anchor transition))))
         (:id core-indentation-spoken-pitch-tone
          :match
@@ -1916,8 +1916,76 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+            :audio-mode overlay
             :anchor transition))))
+        (:id core-indentation-duration-tone-insert
+         :match
+         (:event indentation-located
+          :indentation-presentation duration-tone
+          :indentation-tone-timing insert
+          :requires (indentation-tone-pitch indentation-tone-duration))
+         :render
+         (:before
+          (:anchor transition
+           :remove (core-indentation-duration-tone-action)
+           :append
+           ((:id core-indentation-duration-tone-action
+             :kind tone
+             :pitch (:fact indentation-tone-pitch)
+             :duration (:fact indentation-tone-duration)
+             :audio-mode insert
+             :anchor transition)))))
+        (:id core-indentation-pitch-tone-insert
+         :match
+         (:event indentation-located
+          :indentation-presentation pitch-tone
+          :indentation-tone-timing insert
+          :requires (indentation-tone-pitch indentation-tone-duration))
+         :render
+         (:before
+          (:anchor transition
+           :remove (core-indentation-pitch-tone-action)
+           :append
+           ((:id core-indentation-pitch-tone-action
+             :kind tone
+             :pitch (:fact indentation-tone-pitch)
+             :duration (:fact indentation-tone-duration)
+             :audio-mode insert
+             :anchor transition)))))
+        (:id core-indentation-spoken-duration-tone-insert
+         :match
+         (:event indentation-located
+          :indentation-presentation spoken-duration-tone
+          :indentation-tone-timing insert
+          :requires (indentation-tone-pitch indentation-tone-duration))
+         :render
+         (:before
+          (:anchor transition
+           :remove (core-indentation-spoken-duration-tone-action)
+           :append
+           ((:id core-indentation-spoken-duration-tone-action
+             :kind tone
+             :pitch (:fact indentation-tone-pitch)
+             :duration (:fact indentation-tone-duration)
+             :audio-mode insert
+             :anchor transition)))))
+        (:id core-indentation-spoken-pitch-tone-insert
+         :match
+         (:event indentation-located
+          :indentation-presentation spoken-pitch-tone
+          :indentation-tone-timing insert
+          :requires (indentation-tone-pitch indentation-tone-duration))
+         :render
+         (:before
+          (:anchor transition
+           :remove (core-indentation-spoken-pitch-tone-action)
+           :append
+           ((:id core-indentation-spoken-pitch-tone-action
+             :kind tone
+             :pitch (:fact indentation-tone-pitch)
+             :duration (:fact indentation-tone-duration)
+             :audio-mode insert
+             :anchor transition)))))
         (:id core-capital-spoken
          :match
          (:event capitalization-located :capitalization-kind capital

@@ -680,6 +680,14 @@ Registry validation rejects missing targets and alias cycles."
      :phases '(before)
      :usage
      "Selects spoken, duration-coded, or pitch-coded indentation feedback."))
+  (unless (emacsvox-aural-semantic 'indentation-tone-timing)
+    (emacsvox-aural-register-semantic
+     'indentation-tone-timing
+     :kind 'attribute
+     :summary "Whether the indentation tone plays alongside or before speech"
+     :value-type 'symbol
+     :allowed-values '(overlay insert)
+     :phases '(before)))
   (unless (emacsvox-aural-semantic 'indentation-tone-pitch)
     (emacsvox-aural-register-semantic
      'indentation-tone-pitch

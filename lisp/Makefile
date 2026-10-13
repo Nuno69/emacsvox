@@ -150,6 +150,7 @@ emacsvox-pronounce.elc \
 emacsvox-speak.elc  \
 emacsvox-advice.elc\
 emacsvox-keymap.elc\
+emacsvox-indentation.elc\
 emacsvox-welcome.elc\
 $(AURAL_OBJECTS) \
 emacsvox.elc \

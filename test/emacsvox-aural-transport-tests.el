@@ -6594,130 +6594,147 @@ is the default inherited by a newly created TTS scratch buffer."
 (ert-deftest emacsvox-aural-transport-indentation-compiles-at-source ()
   "Line indentation facts freeze a rising tone without changing source text."
   (emacsvox-test--with-transport-scheme
-    (emacsvox-test--transport-scheme nil)
-    (let ((emacsvox-audio-indentation t)
-          (emacsvox-indentation-presentation 'pitch-tone)
-          (emacsvox-indentation-pitch-tone-base 250.0)
-          (emacsvox-indentation-pitch-tone-semitones-per-column 1.0)
-          (emacsvox-indentation-pitch-tone-maximum 2000.0)
-          (emacsvox-indentation-pitch-tone-duration 10)
-          (emacsvox-show-point nil)
-          (tts-punctuation-mode 'all)
-          line
-          prepared)
-      (with-temp-buffer
-        (insert "    value")
-        (goto-char (point-min))
-        (emacsvox-speak-line-with-speaker
-         (lambda (text) (setq line text)))
-        (setq
-         prepared
-         (emacsvox-aural-prepare-text
-          line nil
-          '(:mode text-mode :occasion navigation
-            :voice-lock-enabled t))))
-      (should (equal (substring-no-properties prepared) "    value"))
-      (should
-       (eq
-        (get-text-property
-         4 emacsvox-aural-concrete-plan-property prepared)
-        (get-text-property
-         5 emacsvox-aural-concrete-plan-property prepared)))
-      (let* ((plan
-              (get-text-property
-               4 emacsvox-aural-concrete-plan-property prepared))
-             (action
-              (car (emacsvox-aural-concrete-plan-before plan)))
-             (built
-              (emacsvox-aural--build-structured-timeline
-               1 1 (list (list plan "value" nil))))
-             (envelope (car built))
-             (span (aref (plist-get envelope :spans) 0))
-             (wire-tone
-              (seq-find
-               (lambda (entry)
-                 (equal (plist-get entry :type) "tone"))
-               (append (plist-get envelope :actions) nil))))
-        (should (eq (emacsvox-aural-concrete-action-kind action) 'tone))
-        (should
-         (eq (emacsvox-aural-concrete-action-audio-mode action) 'insert))
-        (should
-         (>
-          (emacsvox-aural-concrete-action-pitch action)
-          emacsvox-indentation-pitch-tone-base))
-        (should
-         (>=
-          (emacsvox-aural-concrete-action-duration action)
-          (emacsvox-speak--blank-line-tone-duration)))
-        (should (equal (plist-get span :text) "value"))
-        (should (equal (plist-get wire-tone :mode) "insert"))))))
+   (emacsvox-test--transport-scheme nil)
+   (dolist (timing '(overlay insert))
+     (let ((emacsvox-indentation-tone-timing timing)
+           (emacsvox-audio-indentation t)
+           (emacsvox-indentation-presentation 'pitch-tone)
+           (emacsvox-indentation-pitch-tone-base 250.0)
+           (emacsvox-indentation-pitch-tone-semitones-per-column 1.0)
+           (emacsvox-indentation-pitch-tone-maximum 2000.0)
+           (emacsvox-indentation-pitch-tone-duration 10)
+           (emacsvox-show-point nil)
+           (tts-punctuation-mode 'all)
+           line
+           prepared)
+       (with-temp-buffer
+         (insert "    value")
+         (goto-char (point-min))
+         (emacsvox-speak-line-with-speaker
+          (lambda (text) (setq line text)))
+         ;; Capture timing before changing the buffer preference.
+         (setq emacsvox-indentation-tone-timing
+               (if (eq timing 'overlay) 'insert 'overlay))
+         (setq
+          prepared
+          (emacsvox-aural-prepare-text
+           line nil
+           '(:mode text-mode :occasion navigation
+                   :voice-lock-enabled t))))
+       (should (equal (substring-no-properties prepared) "    value"))
+       (should
+        (eq
+         (get-text-property
+          4 emacsvox-aural-concrete-plan-property prepared)
+         (get-text-property
+          5 emacsvox-aural-concrete-plan-property prepared)))
+       (let* ((plan
+               (get-text-property
+                4 emacsvox-aural-concrete-plan-property prepared))
+              (action
+               (car (emacsvox-aural-concrete-plan-before plan)))
+              (built
+               (emacsvox-aural--build-structured-timeline
+                1 1 (list (list plan "value" nil))))
+              (envelope (car built))
+              (span (aref (plist-get envelope :spans) 0))
+              (wire-tone
+               (seq-find
+                (lambda (entry)
+                  (equal (plist-get entry :type) "tone"))
+                (append (plist-get envelope :actions) nil))))
+         (should (eq (emacsvox-aural-concrete-action-kind action) 'tone))
+         (should
+          (eq (emacsvox-aural-concrete-action-audio-mode action) timing))
+         (should
+          (>
+           (emacsvox-aural-concrete-action-pitch action)
+           emacsvox-indentation-pitch-tone-base))
+         (should
+          (>=
+           (emacsvox-aural-concrete-action-duration action)
+           (emacsvox-speak--blank-line-tone-duration)))
+         (should (equal (plist-get span :text) "value"))
+         (should (equal (plist-get wire-tone :mode) (symbol-name timing))))))))
 
 (ert-deftest emacsvox-aural-transport-indentation-presents-once-across-runs ()
   "Indentation presents once inside a whole-line, multi-face object."
   (emacsvox-test--with-transport-scheme
-    (emacsvox-test--transport-scheme nil)
-    (dolist
-        (case
-         '((spoken (speech))
-           (duration-tone (tone))
-           (pitch-tone (tone))
-           (spoken-duration-tone (speech tone))
-           (spoken-pitch-tone (speech tone))))
-      (let* ((presentation (car case))
-             (line (copy-sequence "        self.hash = hash"))
-             prepared
-             leading-plan
-             plans)
-        (add-text-properties
-         0 (length line)
-         (list emacsvox-aural-object-property 'native-line)
-         line)
-        (add-text-properties 8 12 '(face font-lock-keyword-face) line)
-        (add-text-properties 13 17 '(face font-lock-variable-name-face) line)
-        (emacsvox-speak--annotate-indentation
-         line
-         (list
-          :events '(indentation-located)
-          :indentation-columns 8
-          :indentation-presentation presentation
-          :indentation-tone-pitch 500.0
-          :indentation-tone-duration 150))
-        (setq
-         prepared
-         (emacsvox-aural-prepare-text
-          line nil
-          '(:mode python-mode :occasion navigation
-            :voice-lock-enabled nil)))
-        (setq
-         leading-plan
-         (get-text-property
-          0 emacsvox-aural-concrete-plan-property prepared))
-        (setq
-         plans
-         (mapcar
-          (lambda (position)
-            (get-text-property
-             position emacsvox-aural-concrete-plan-property prepared))
-          '(8 12 13)))
-        (should (not (eq (nth 0 plans) (nth 1 plans))))
-        (should (not (eq (nth 1 plans) (nth 2 plans))))
-        (should-not (emacsvox-aural-concrete-plan-before leading-plan))
-        (should
-         (equal
-          (substring-no-properties prepared)
-          "        self.hash = hash"))
-        (should (eq (get-text-property 8 'face prepared)
-                    'font-lock-keyword-face))
-        (should (eq (get-text-property 13 'face prepared)
-                    'font-lock-variable-name-face))
-        (should
-         (equal
+   (emacsvox-test--transport-scheme nil)
+   (dolist (timing '(overlay insert))
+     (dolist
+         (case
+          '((spoken (speech))
+            (duration-tone (tone))
+            (pitch-tone (tone))
+            (spoken-duration-tone (speech tone))
+            (spoken-pitch-tone (speech tone))))
+       (let* ((presentation (car case))
+              (line (copy-sequence "        self.hash = hash"))
+              prepared
+              leading-plan
+              plans)
+         (add-text-properties
+          0 (length line)
+          (list emacsvox-aural-object-property 'native-line)
+          line)
+         (add-text-properties 8 12 '(face font-lock-keyword-face) line)
+         (add-text-properties 13 17 '(face font-lock-variable-name-face) line)
+         (emacsvox-speak--annotate-indentation
+          line
+          (list
+           :events '(indentation-located)
+           :indentation-columns 8
+           :indentation-presentation presentation
+           :indentation-tone-timing timing
+           :indentation-tone-pitch 500.0
+           :indentation-tone-duration 150))
+         (setq
+          prepared
+          (emacsvox-aural-prepare-text
+           line nil
+           '(:mode python-mode :occasion navigation
+                   :voice-lock-enabled nil)))
+         (setq
+          leading-plan
+          (get-text-property
+           0 emacsvox-aural-concrete-plan-property prepared))
+         (setq
+          plans
           (mapcar
-           #'emacsvox-aural-concrete-action-kind
-           (emacsvox-aural-concrete-plan-before (car plans)))
-          (cadr case)))
-        (dolist (plan (cdr plans))
-          (should-not (emacsvox-aural-concrete-plan-before plan)))))))
+           (lambda (position)
+             (get-text-property
+              position emacsvox-aural-concrete-plan-property prepared))
+           '(8 12 13)))
+         (should (not (eq (nth 0 plans) (nth 1 plans))))
+         (should (not (eq (nth 1 plans) (nth 2 plans))))
+         (should-not (emacsvox-aural-concrete-plan-before leading-plan))
+         (should
+          (equal
+           (substring-no-properties prepared)
+           "        self.hash = hash"))
+         (should (eq (get-text-property 8 'face prepared)
+                     'font-lock-keyword-face))
+         (should (eq (get-text-property 13 'face prepared)
+                     'font-lock-variable-name-face))
+         (should
+          (equal
+           (mapcar
+            #'emacsvox-aural-concrete-action-kind
+            (emacsvox-aural-concrete-plan-before (car plans)))
+           (cadr case)))
+         (let* ((built
+                 (emacsvox-aural--build-structured-timeline
+                  1 1 (cl-mapcar #'list plans '("self" "." "hash") '(nil nil nil))))
+                (tones
+                 (seq-filter
+                  (lambda (action) (equal (plist-get action :type) "tone"))
+                  (append (plist-get (car built) :actions) nil))))
+           (should (= (length tones) (if (eq presentation 'spoken) 0 1)))
+           (when tones
+             (should (equal (plist-get (car tones) :mode) (symbol-name timing)))))
+         (dolist (plan (cdr plans))
+           (should-not (emacsvox-aural-concrete-plan-before plan))))))))
 
 (ert-deftest emacsvox-aural-transport-notification-captures-before-logging ()
   "Notification logging cannot replace the source buffer context."

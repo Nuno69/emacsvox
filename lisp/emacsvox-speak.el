@@ -553,10 +553,12 @@ Also set the mark at the position where point was."
 
 ;;;   indentation:
 
-(defvar-local emacsvox-audio-indentation nil
+(defcustom emacsvox-audio-indentation nil
   "Option indicating if line indentation is cued.
 You can use command `emacsvox-toggle-audio-indentation' bound to
-\\[emacsvox-toggle-audio-indentation] to toggle this setting.")
+\\[emacsvox-toggle-audio-indentation] to toggle this setting."
+  :type 'boolean
+  :group 'emacsvox-aural)
 
 (make-variable-buffer-local 'emacsvox-audio-indentation)
 
@@ -586,6 +588,17 @@ personal aural rules, and `none' suppresses presentation while leaving
   '(spoken duration-tone pitch-tone
     spoken-duration-tone spoken-pitch-tone custom none)
   "Supported values of `emacsvox-indentation-presentation'.")
+
+(defcustom emacsvox-indentation-tone-timing 'overlay
+  "When indentation tones play relative to the line's speech.
+
+`overlay' plays the tone alongside speech.  `insert' finishes the tone
+before speaking the line.  This affects the built-in tonal indentation
+presentations; spoken-only feedback is unchanged.  Backends without overlay
+support play the tone before speech in either case."
+  :type '(choice (const :tag "Alongside speech" overlay)
+                 (const :tag "Before speech" insert))
+  :group 'emacsvox-aural)
 
 (defcustom emacsvox-indentation-pitch-tone-base 250.0
   "Pitch in hertz for the first nonzero indentation column."
@@ -677,7 +690,8 @@ The actual duration is never shorter than the registered blank-line tone."
           facts
           (list
            :indentation-tone-pitch (car tone)
-           :indentation-tone-duration (cdr tone)))))
+           :indentation-tone-duration (cdr tone)
+           :indentation-tone-timing emacsvox-indentation-tone-timing))))
       facts)))
 
 (defun emacsvox-speak--annotate-indentation (text facts)
@@ -739,6 +753,41 @@ also set the global default and use it in the current buffer."
     (let ((emacsvox-audio-indentation t))
       (emacsvox-speak--preview-indentation-presentation)))
   presentation)
+
+(defun emacsvox-set-indentation-tone-timing (timing &optional global)
+  "Select indentation tone TIMING and preview four-column indentation.
+
+TIMING is `overlay' for alongside speech or `insert' for before speech.
+Set the option buffer-locally.  With interactive prefix GLOBAL, also set
+the global default.  Use Customize to save the default across sessions.
+Preview the current tonal presentation, or a pitch tone if it has no tone,
+without enabling indentation feedback or changing its presentation."
+  (interactive
+   (list
+    (cdr
+     (assoc
+      (completing-read
+       "Indentation tone timing: "
+       '("Alongside speech" "Before speech") nil t nil nil
+       (if (eq emacsvox-indentation-tone-timing 'insert)
+           "Before speech" "Alongside speech"))
+      '(("Alongside speech" . overlay) ("Before speech" . insert))))
+    current-prefix-arg))
+  (unless (memq timing '(overlay insert))
+    (user-error "Unknown indentation tone timing: %S" timing))
+  (when global
+    (set-default 'emacsvox-indentation-tone-timing timing))
+  (setq-local emacsvox-indentation-tone-timing timing)
+  (when (called-interactively-p 'interactive)
+    (let ((emacsvox-audio-indentation t)
+          (emacsvox-indentation-presentation
+           (if (memq emacsvox-indentation-presentation
+                     '(duration-tone pitch-tone
+                       spoken-duration-tone spoken-pitch-tone))
+               emacsvox-indentation-presentation
+             'pitch-tone)))
+      (emacsvox-speak--preview-indentation-presentation)))
+  timing)
 
 ;; Indicate indentation.
 ;; Argument indent   indicates number of columns to indent.

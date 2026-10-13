@@ -30,7 +30,7 @@
          point-boundary point-presentation capitalization-located
          capitalization-kind capitalization-presentation indentation-located
          indentation-columns indentation-presentation indentation-tone-pitch
-         indentation-tone-duration))
+         indentation-tone-duration indentation-tone-timing))
     (should (emacsvox-aural-semantic id)))
   (dolist
       (id

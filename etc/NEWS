@@ -16,6 +16,20 @@ Tab and Shift-Tab speak each permission choice once. The cursor hint remains
 visible in the echo area without speaking over the choice on the notification
 stream. Other notifications remain audible.
 
+** Indentation presentation and timing
+
+Arkadiusz Świętnicki proposed and implemented playing indentation tones
+alongside speech in [[https://github.com/bartbunting/emacsvox/pull/9][pull request #9]]. His idea and implementation form the
+basis of this change. Alongside-speech timing is now the default on supporting
+backends, with before-speech timing available as an option.
+
+=C-e d I= opens a Transient to choose spoken or tonal indentation, tone timing,
+and main-stream tone volume. Use =g= to switch between current-buffer settings
+and global defaults, or open with =C-u C-e d I= to start with global defaults.
+=SPC= previews the settings, and =S= saves global defaults across sessions.
+Tone volume is global in either scope. Existing direct selector commands
+remain available, and spoken-only indentation feedback is unchanged.
+
 ** Announce the destination after closing an Agent Shell buffer
 
 Closing a buffer now waits for related buffer cleanup before announcing the

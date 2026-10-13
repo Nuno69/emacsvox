@@ -115,12 +115,13 @@
 @item =  tts-rate-adjust
 @item C  emacsvox-set-capitalization-presentation
 @item D  emacsvox-aural-toggle-diagnostic-logging
-@item I  emacsvox-set-indentation-presentation
+@item I  emacsvox-indentation
 @item L  tts-local-server
 @item N  tts-set-next-language
 @item P  tts-set-previous-language
 @item R  tts-reset-state
 @item S  tts-set-language
+@item T  emacsvox-set-indentation-tone-timing
 @item V  tts-speak-version
 @item a  tts-add-cleanup-pattern
 @item c  tts-toggle-caps

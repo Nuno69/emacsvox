@@ -326,56 +326,84 @@
 (ert-deftest emacsvox-aural-default-scheme-presents-indentation-modalities ()
   "Indentation facts select speech, duration tones, rising tones, or both."
   (emacsvox-test--with-isolated-schemes
-    (let ((context '(:mode text-mode :occasion navigation)))
-      (dolist
-          (case
-           '((spoken (speech))
-             (duration-tone (tone))
-             (pitch-tone (tone))
-             (spoken-duration-tone (speech tone))
-             (spoken-pitch-tone (speech tone))))
-        (let* ((presentation (car case))
-               (plan
-                (emacsvox-aural-resolve-active
-                 (list
-                  :events '(indentation-located)
-                  :indentation-columns 4
-                  :indentation-presentation presentation
-                  :indentation-tone-pitch 314.98
-                  :indentation-tone-duration 150)
-                 context))
-               (actions (emacsvox-aural-render-plan-before plan)))
-          (should
-           (equal
-            (mapcar #'emacsvox-aural-action-kind actions)
-            (cadr case)))
-          (dolist (action actions)
-            (should (eq (emacsvox-aural-action-anchor action) 'transition))
-            (pcase (emacsvox-aural-action-kind action)
-              ('speech
-               (should
-                (equal
-                 (emacsvox-aural-action-text-template action)
-                 "indent {indentation-columns}")))
-              ('tone
-               (should
-                (eq (emacsvox-aural-action-audio-mode action) 'insert))
-               (should
-                (equal
-                 (emacsvox-aural-action-pitch action)
-                 '(:fact indentation-tone-pitch)))
-               (should
-                (equal
-                 (emacsvox-aural-action-duration action)
-                 '(:fact indentation-tone-duration))))))))
-      (let ((custom
-             (emacsvox-aural-resolve-active
-              '(:events (indentation-located)
-                :indentation-columns 4
-                :indentation-presentation custom)
-              context)))
-        (should-not (emacsvox-aural-render-plan-matched-rules custom))
-        (should-not (emacsvox-aural-render-plan-before custom))))))
+   (let ((context '(:mode text-mode :occasion navigation)))
+     (dolist (timing '(nil overlay insert))
+       (dolist
+           (case
+            '((spoken (speech))
+              (duration-tone (tone))
+              (pitch-tone (tone))
+              (spoken-duration-tone (speech tone))
+              (spoken-pitch-tone (speech tone))))
+         (let* ((presentation (car case))
+                (plan
+                 (emacsvox-aural-resolve-active
+                  (append
+                   (when timing (list :indentation-tone-timing timing))
+                   (list
+                    :events '(indentation-located)
+                    :indentation-columns 4
+                    :indentation-presentation presentation
+                    :indentation-tone-pitch 314.98
+                    :indentation-tone-duration 150))
+                  context))
+                (actions (emacsvox-aural-render-plan-before plan)))
+           (should
+            (equal
+             (mapcar #'emacsvox-aural-action-kind actions)
+             (cadr case)))
+           (dolist (action actions)
+             (should (eq (emacsvox-aural-action-anchor action) 'transition))
+             (pcase (emacsvox-aural-action-kind action)
+               ('speech
+                (should
+                 (equal
+                  (emacsvox-aural-action-text-template action)
+                  "indent {indentation-columns}")))
+               ('tone
+                (should
+                 (eq (emacsvox-aural-action-audio-mode action) (or timing 'overlay)))
+                (should
+                 (equal
+                  (emacsvox-aural-action-pitch action)
+                  '(:fact indentation-tone-pitch)))
+                (should
+                 (equal
+                  (emacsvox-aural-action-duration action)
+                  '(:fact indentation-tone-duration)))))))))
+     (let ((custom
+            (emacsvox-aural-resolve-active
+             '(:events (indentation-located)
+                       :indentation-columns 4
+                       :indentation-presentation custom)
+             context)))
+       (should-not (emacsvox-aural-render-plan-matched-rules custom))
+       (should-not (emacsvox-aural-render-plan-before custom))))))
+
+(ert-deftest emacsvox-aural-indentation-timing-preserves-other-feedback ()
+  "Before-speech timing retains point cues and personal rule overrides."
+  (emacsvox-test--with-isolated-schemes
+    (let* ((facts '(:events (indentation-located point-located)
+                   :point-presentation spoken :point-boundary before
+                   :indentation-presentation pitch-tone
+                   :indentation-tone-timing insert
+                   :indentation-tone-pitch 500 :indentation-tone-duration 150))
+           (context '(:mode text-mode :occasion navigation))
+           (actions (emacsvox-aural-render-plan-before
+                     (emacsvox-aural-resolve-active facts context))))
+      (should (equal (mapcar #'emacsvox-aural-action-kind actions) '(speech tone)))
+      (should (equal (emacsvox-aural-action-text (car actions)) "point"))
+      (setq emacsvox-aural-user-rules
+            '((:id personal-indentation
+               :match (:event indentation-located)
+               :render
+               (:before
+                (:anchor transition
+                 :remove (core-indentation-pitch-tone-action))))))
+      (should (equal (mapcar #'emacsvox-aural-action-kind
+                            (emacsvox-aural-render-plan-before
+                             (emacsvox-aural-resolve-active facts context)))
+                     '(speech))))))
 
 (ert-deftest emacsvox-aural-schemes-inherit-rules-and-providers ()
   "A child inherits providers and its equally specific rule wins."

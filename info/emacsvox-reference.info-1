@@ -172,12 +172,13 @@ File: emacsvox-reference.info,  Node: Emacsvox Keybindings On emacsvox-tts-subma
 ‘= tts-rate-adjust’
 ‘C emacsvox-set-capitalization-presentation’
 ‘D emacsvox-aural-toggle-diagnostic-logging’
-‘I emacsvox-set-indentation-presentation’
+‘I emacsvox-indentation’
 ‘L tts-local-server’
 ‘N tts-set-next-language’
 ‘P tts-set-previous-language’
 ‘R tts-reset-state’
 ‘S tts-set-language’
+‘T emacsvox-set-indentation-tone-timing’
 ‘V tts-speak-version’
 ‘a tts-add-cleanup-pattern’
 ‘c tts-toggle-caps’
@@ -418,7 +419,7 @@ useful in understanding how emacsvox works with a given package; thus,
 when learning to use the Emacs Web Browser (EWW), read the *Note
 (emacs)EWW:: documentation, then *Note emacsvox-eww::.
 
-   This chapter documents a total of 1629 commands and 227 options.
+   This chapter documents a total of 1631 commands and 229 options.
 
 * Menu:
 
@@ -583,6 +584,7 @@ when learning to use the Emacs Web Browser (EWW), read the *Note
 * emacsvox-ibuffer:: speech-enable ibuffer.
 * emacsvox-ido:: speech-enable ido.
 * emacsvox-iedit:: Speech-enable IEDIT.
+* emacsvox-indentation:: Indentation feedback menu.
 * emacsvox-info:: Speech enable Info -.
 * emacsvox-ispell:: Speech enable Ispell.
 * emacsvox-ivy:: Speech-enable IVY.

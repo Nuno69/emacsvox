@@ -284,6 +284,49 @@
            :type 'user-error))
       (set-default 'emacsvox-indentation-presentation original))))
 
+(ert-deftest emacsvox-set-indentation-tone-timing-supports-local-and-global ()
+  "Timing can vary by buffer without changing the presentation or enabling it."
+  (let ((original (default-value 'emacsvox-indentation-tone-timing)))
+    (unwind-protect
+        (with-temp-buffer
+          (setq-local emacsvox-indentation-presentation 'spoken)
+          (setq-local emacsvox-audio-indentation nil)
+          (should (eq (emacsvox-set-indentation-tone-timing 'insert) 'insert))
+          (should (local-variable-p 'emacsvox-indentation-tone-timing))
+          (should (eq (default-value 'emacsvox-indentation-tone-timing) original))
+          (with-temp-buffer
+            (should (eq emacsvox-indentation-tone-timing original)))
+          (emacsvox-set-indentation-tone-timing 'overlay t)
+          (should (eq emacsvox-indentation-tone-timing 'overlay))
+          (with-temp-buffer
+            (should (eq emacsvox-indentation-tone-timing 'overlay)))
+          (should-error (emacsvox-set-indentation-tone-timing 'unknown)
+                        :type 'user-error)
+          (should (eq emacsvox-indentation-tone-timing 'overlay))
+          (should (eq emacsvox-indentation-presentation 'spoken))
+          (should-not emacsvox-audio-indentation))
+      (set-default 'emacsvox-indentation-tone-timing original))))
+
+(ert-deftest emacsvox-indentation-tone-timing-previews-without-enabling ()
+  "The timing selector previews a tone even when indentation feedback is off."
+  (with-temp-buffer
+    (setq-local emacsvox-audio-indentation nil)
+    (setq-local emacsvox-indentation-presentation 'spoken)
+    (let ((native-comp-enable-subr-trampolines nil)
+          preview)
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (&rest _) "Before speech"))
+                ((symbol-function 'called-interactively-p)
+                 (lambda (&rest _) t))
+                ((symbol-function 'tts-speak)
+                 (lambda (text) (setq preview text))))
+        (call-interactively #'emacsvox-set-indentation-tone-timing))
+      (let ((facts (get-text-property 4 emacsvox-aural-facts-property preview)))
+        (should (eq (plist-get facts :indentation-tone-timing) 'insert))
+        (should (eq (plist-get facts :indentation-presentation) 'pitch-tone)))
+      (should-not emacsvox-audio-indentation)
+      (should (eq emacsvox-indentation-presentation 'spoken)))))
+
 (ert-deftest emacsvox-indentation-facts-calibrate-duration-and-pitch-tones ()
   "Indentation modes publish stable duration or rising-pitch tone facts."
   (let ((emacsvox-audio-indentation t)
