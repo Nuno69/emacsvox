@@ -3332,6 +3332,8 @@ File: emacsvox.info,  Node: Concept Index,  Prev: Developer Guide,  Up: Top
 * Introduction:                          Introduction.        (line   6)
 * line echo:                             Controlling Echo.    (line   6)
 * line mode, Term:                       Term Input Modes.    (line   6)
+* Magit:                                 Development Environment.
+                                                              (line  36)
 * mail search, Notmuch:                  Notmuch Mail.        (line   6)
 * major modes:                           Object Oriented Desktop.
                                                               (line   6)
@@ -3412,6 +3414,8 @@ File: emacsvox.info,  Node: Concept Index,  Prev: Developer Guide,  Up: Top
 * terminal output, speech policy:        EAT Terminal Access. (line  68)
 * terminal privacy:                      EAT Terminal Access. (line 332)
 * terminal screen review:                EAT Terminal Access. (line 203)
+* Transient menus:                       Development Environment.
+                                                              (line  36)
 * troubleshooting, Notmuch:              Notmuch Mail.        (line 354)
 * TTS:                                   Speech System.       (line   6)
 * voice adjustments:                     Editing Named Voices.

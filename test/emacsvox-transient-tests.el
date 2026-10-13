@@ -58,6 +58,7 @@
                           emacsvox--advice-transient-prefix-set-after)
     (transient--show :after emacsvox--advice-transient--show-after)
     (transient--show-hint :around emacsvox--advice-transient--show-hint-around)
+    (transient--invalid :around emacsvox--advice-transient--invalid-around)
     (transient-suspend :around
                        emacsvox--advice-transient-suspend-around)
     (transient-backward-button
@@ -167,7 +168,7 @@
       (emacsvox--advice-transient-infix-set-after
        object "--verbose"))
     (should (= (length submissions) 1))
-    (should (equal (caar submissions) "Verbose, --verbose"))
+    (should (equal (caar submissions) "Verbose, on"))
     (should
      (equal
       (plist-get (cdar submissions) :facts)
@@ -686,6 +687,84 @@
   (should (equal (emacsvox-transient--key-text "-F") "minus capital F"))
   (should (equal (emacsvox-transient--key-text "C-x C-s") "Control x Control s"))
   (should (equal (emacsvox-transient--key-text "M-RET") "Alt Enter")))
+
+(ert-deftest emacsvox-transient-custom-rendered-values-remain-navigable ()
+  "A custom suffix with no description method retains its rendered values."
+  (let ((object (transient-option :command 'ignore :key "u")))
+    (cl-letf (((symbol-function 'transient-format-description)
+               (lambda (_) (error "This suffix implements only transient-format"))))
+      (should
+       (equal (emacsvox-transient--choice-text
+               object "Configure master" " u branch.master.merge refs/heads/master\n   branch.master.remote origin")
+              "branch.master.merge refs/heads/master\n   branch.master.remote origin. Shortcut u.")))))
+
+(transient-define-prefix emacsvox-test--feedback-menu ()
+  "Choose a test option."
+  ["Options" ("-n" "Dry run" "--dry-run")]
+  ["Actions" ("a" "Test action" ignore)])
+
+(ert-deftest emacsvox-transient-invalid-map-preserves-emergency-feedback ()
+  "An inconsistent menu keeps upstream diagnostics and return behavior."
+  (let ((transient--transient-map nil)
+        (emacsvox-speak-messages t)
+        speech-enabled)
+    (should (eq (emacsvox--advice-transient--invalid-around
+                 (lambda (_)
+                   (setq speech-enabled emacsvox-speak-messages)
+                   'emergency-result)
+                 "Unbound suffix")
+                'emergency-result))
+    (should speech-enabled)))
+
+(ert-deftest emacsvox-transient-key-feedback-is-single-and-local ()
+  "Real shortcuts and button activation speak values; invalid keys stay local."
+  (skip-unless (display-graphic-p))
+  (save-window-excursion
+    (with-temp-buffer
+      (switch-to-buffer (current-buffer))
+      (use-local-map (make-sparse-keymap))
+      (local-set-key (kbd "<f8>") #'emacsvox-test--feedback-menu)
+      (let ((transient-show-menu 0)
+            (transient-values nil)
+            (transient-history nil)
+            (emacsvox-speak-messages t)
+            (emacsvox-transient--announced-prefix nil)
+            (emacsvox-transient--announced-stack nil)
+            spoken messages)
+        (cl-letf (((symbol-function 'emacsvox-aural-submit)
+                   (lambda (content &rest _)
+                     (push (substring-no-properties content) spoken)))
+                  ((symbol-function 'emacsvox-aural-submit-actions) #'ignore)
+                  ((symbol-function 'tts-stop) #'ignore)
+                  ;; `ding' aborts keyboard macros before recovery can speak.
+                  ((symbol-function 'ding) #'ignore)
+                  ((symbol-function 'message)
+                   (lambda (format-string &rest arguments)
+                     (when (and emacsvox-speak-messages format-string)
+                       (push (apply #'format format-string arguments) messages)))))
+          (unwind-protect
+              (progn
+                (execute-kbd-macro (kbd "<f8>"))
+                (transient--show)
+                (setq spoken nil messages nil)
+                (execute-kbd-macro (kbd "- n"))
+                (should (equal spoken '("Dry run, on")))
+                (should-not messages)
+                ;; Navigate to the switch before activating its button.
+                (execute-kbd-macro (kbd "<down>"))
+                (should (string-match-p "Dry run, on" (car spoken)))
+                (setq spoken nil)
+                (execute-kbd-macro (kbd "C-j"))
+                (should (equal spoken '("Dry run, off")))
+                (setq spoken nil messages nil)
+                (execute-kbd-macro (kbd "q"))
+                (should (equal spoken '("q is not available here. Control G closes this menu.")))
+                (should-not messages)
+                (should transient--prefix)
+                (message "An unrelated error")
+                (should (equal messages '("An unrelated error"))))
+            (when transient--prefix
+              (execute-kbd-macro (kbd "C-g")))))))))
 
 (ert-deftest emacsvox-transient-section-navigation-is-native ()
   "Section navigation presents the reached heading and its semantic identity."

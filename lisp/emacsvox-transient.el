@@ -119,6 +119,23 @@
 (advice-add 'transient--show-hint :around
             #'emacsvox--advice-transient--show-hint-around)
 
+(defun emacsvox--advice-transient--invalid-around (original message)
+  "Keep the visual invalid-key MESSAGE and speak concise recovery guidance."
+  ;; Preserve upstream emergency diagnostics if its overriding map was lost.
+  (if (not (and transient--transient-map
+                (memq transient--transient-map overriding-terminal-local-map)))
+      (funcall original message)
+    (let ((key (emacsvox-transient--key-text
+                (key-description (this-single-command-keys)))))
+      (prog1 (let ((emacsvox-speak-messages nil)) (funcall original message))
+        (emacsvox-transient--submit-text
+         (format "%s is not available here. Control G closes this menu." key)
+         (emacsvox-transient--item-facts 'command this-command 'operation-failed)
+         'state-change 'warn-user)))))
+
+(advice-add 'transient--invalid :around
+            #'emacsvox--advice-transient--invalid-around)
+
 (defun emacsvox--advice-transient-toggle-common-after (&rest _)
   "Present the new common-command visibility setting."
   (when (ems-interactive-p 'transient-toggle-common)
@@ -251,14 +268,20 @@
   "Return a concise description of changed infix OBJECT named TARGET."
   (let ((description
          (or
-          (ignore-errors (transient-get-summary object))
+          (ignore-errors
+            (transient-with-shadowed-buffer (transient-format-description object)))
           (replace-regexp-in-string
            "\\`[^-]+-" "" (symbol-name target)))))
     (format
      "%s, %s"
      description
-     (emacsvox-transient--format-value
-      (ignore-errors (oref object value))))))
+     (emacsvox-transient--infix-state object))))
+
+(defun emacsvox-transient--infix-state (object)
+  "Describe the current state of infix OBJECT."
+  (if (object-of-class-p object 'transient-switch)
+      (if (oref object value) "on" "off")
+    (emacsvox-transient--format-value (oref object value) "not set")))
 
 (defun emacsvox-transient--key-text (key)
   "Describe KEY for speech, preserving modifiers and letter case."
@@ -284,34 +307,48 @@
         " ")))
    (kbd key) " "))
 
-(defun emacsvox-transient--choice-text (object &optional group)
-  "Describe suffix OBJECT, its state and shortcut, with optional GROUP context."
+(defun emacsvox-transient--choice-text (object &optional group rendered)
+  "Describe suffix OBJECT with GROUP context and RENDERED fallback text."
   (when (and (eieio-object-p object) (object-of-class-p object 'transient-suffix))
-    (let* ((description (transient-with-shadowed-buffer
-                         (transient-format-description object)))
+    (let* ((description (ignore-errors
+                          (transient-with-shadowed-buffer
+                            (transient-format-description object))))
            (infix (object-of-class-p object 'transient-infix))
-           (label (if (and group (not infix)
-                           (not (string-prefix-p group description t)))
-                      (concat group " " description)
-                    description)))
-      (concat
-       label
-       (when infix
-         (concat ", " (if (object-of-class-p object 'transient-switch)
-                          (if (oref object value) "on" "off")
-                        (emacsvox-transient--format-value (oref object value) "not set"))))
-       ". "
-       (when (oref object inapt) "Unavailable. ")
-       "Shortcut " (emacsvox-transient--key-text (oref object key)) "."))))
+           ;; Custom suffixes can implement only `transient-format', including
+           ;; multiple values.  Keep that rendered evidence without adding it twice.
+           (label (or description
+                      (when rendered
+                        (string-trim
+                         (replace-regexp-in-string
+                          (concat "\\`[ \t]*" (regexp-quote (oref object key)) "[ \t]+")
+                          "" rendered t t))))))
+      (when label
+        (concat
+         (if (and group (not infix) (not (string-prefix-p group label t)))
+             (concat group " " label)
+           label)
+         (when (and description infix)
+           (concat ", " (emacsvox-transient--infix-state object)))
+         ". "
+         (when (oref object inapt) "Unavailable. ")
+         "Shortcut " (emacsvox-transient--key-text (oref object key)) ".")))))
 
 (defun emacsvox--advice-transient-infix-set-after (object _value)
   "Present an interactively changed Transient infix OBJECT."
-  (let ((target ems--interactive-fn-name))
+  (let ((target (ignore-errors (oref object command))))
     (when
         (and
          target
-         (eq target (ignore-errors (oref object command)))
-         (ems-interactive-p target))
+         (or (ems-interactive-p target)
+             ;; Transient wraps interactive suffix commands in a function
+             ;; object.  Require the active suffix, not just a command name,
+             ;; so initialization and cleanup of other values stay silent.
+             (and transient--prefix
+                  (eq target this-command)
+                  (not (symbolp ems--interactive-fn-name))
+                  (functionp ems--interactive-fn-name)
+                  (eq object (transient-suffix-object this-command)))))
+      (setq ems--interactive-fn-name nil)
       (emacsvox-transient--submit-text
        (emacsvox-transient--infix-text object target)
        (emacsvox-transient--item-facts
@@ -753,7 +790,8 @@ DIRECTION is positive for forward movement, negative for backward movement."
                       (button-get button 'button-data)
                       (when section
                         (string-trim (emacsvox-aural-source-substring
-                                      (car section) (cdr section)))))
+                                      (car section) (cdr section))))
+                      (emacsvox-aural-source-substring start end))
                      (emacsvox-aural-source-substring start end)))
          (emacsvox-transient--item-facts 'command 'focus-button 'focus-entered '(selected))
          'navigation 'button)))))

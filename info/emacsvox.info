@@ -16,7 +16,7 @@ This manual documents *Emacsvox, The Complete Audio Desktop*.
 
 Indirect:
 emacsvox.info-1: 384
-emacsvox.info-2: 314427
+emacsvox.info-2: 315886
 
 Tag Table:
 (Indirect)
@@ -107,39 +107,39 @@ Node: Web Browsing284681
 Node: Messaging285596
 Node: Editing Code286106
 Node: Development Environment286625
-Node: Desktop Management288324
-Node: Personal Information Management288826
-Node: Desktop Applications289358
-Node: Notmuch Mail297647
-Ref: Notmuch fields and privacy308311
-Node: Agent Shell314427
-Node: EAT Terminal Access336708
-Node: Running Terminal Based Applications357584
-Node: Starting Term358559
-Node: Term Input Modes359486
-Node: Term Speech Feedback360652
-Node: Reviewing The Term Screen361846
-Node: Term Help And Recovery363747
-Node: Emacsvox Keyboard Commands364666
-Node: Copyright367019
-Node: Acknowledgments367608
-Node: Developer Guide368634
-Node: Documentation Maintenance369798
-Node: Speech Server Protocols375213
-Ref: Testing A Direct Legacy Server383328
-Ref: Commands That Queue Output383887
-Ref: Commands That Set State387725
-Node: Integration Maintenance390319
-Ref: Background startup ownership and failure recovery401235
-Ref: Supported Emacs versions404388
-Ref: Native Windows builds407067
-Ref: Offline Windows development bundle409340
-Ref: Public Windows installer previews418393
-Ref: Remote preview validation421457
-Ref: Internal ownership and renderer tests443081
-Ref: Upstream contract layers446661
-Node: Authoring Sound Packs476828
-Node: Concept Index480099
+Node: Desktop Management289783
+Node: Personal Information Management290285
+Node: Desktop Applications290817
+Node: Notmuch Mail299106
+Ref: Notmuch fields and privacy309770
+Node: Agent Shell315886
+Node: EAT Terminal Access338167
+Node: Running Terminal Based Applications359043
+Node: Starting Term360018
+Node: Term Input Modes360945
+Node: Term Speech Feedback362111
+Node: Reviewing The Term Screen363305
+Node: Term Help And Recovery365206
+Node: Emacsvox Keyboard Commands366125
+Node: Copyright368478
+Node: Acknowledgments369067
+Node: Developer Guide370093
+Node: Documentation Maintenance371257
+Node: Speech Server Protocols376672
+Ref: Testing A Direct Legacy Server384787
+Ref: Commands That Queue Output385346
+Ref: Commands That Set State389184
+Node: Integration Maintenance391778
+Ref: Background startup ownership and failure recovery402694
+Ref: Supported Emacs versions405847
+Ref: Native Windows builds408526
+Ref: Offline Windows development bundle410799
+Ref: Public Windows installer previews419852
+Ref: Remote preview validation422916
+Ref: Internal ownership and renderer tests444540
+Ref: Upstream contract layers448120
+Node: Authoring Sound Packs478287
+Node: Concept Index481558
 
 End Tag Table
 
