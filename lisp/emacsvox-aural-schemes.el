@@ -1867,7 +1867,7 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+            :audio-mode overlay
             :anchor transition))))
         (:id core-indentation-pitch-tone
          :match
@@ -1880,7 +1880,7 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+                          :audio-mode overlay
             :anchor transition))))
         (:id core-indentation-spoken-duration-tone
          :match
@@ -1898,7 +1898,7 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+            :audio-mode overlay
             :anchor transition))))
         (:id core-indentation-spoken-pitch-tone
          :match
@@ -1916,7 +1916,7 @@ An existing file is copied to FILE~ before replacement."
             :kind tone
             :pitch (:fact indentation-tone-pitch)
             :duration (:fact indentation-tone-duration)
-            :audio-mode insert
+            :audio-mode overlay
             :anchor transition))))
         (:id core-capital-spoken
          :match

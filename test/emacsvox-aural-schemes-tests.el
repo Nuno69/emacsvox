@@ -324,7 +324,7 @@
         (should-not (emacsvox-aural-render-plan-before custom))))))
 
 (ert-deftest emacsvox-aural-default-scheme-presents-indentation-modalities ()
-  "Indentation facts select speech, duration tones, rising tones, or both."
+  "Indentation selects speech or tones, with every tone overlaying content."
   (emacsvox-test--with-isolated-schemes
     (let ((context '(:mode text-mode :occasion navigation)))
       (dolist
@@ -359,7 +359,7 @@
                  "indent {indentation-columns}")))
               ('tone
                (should
-                (eq (emacsvox-aural-action-audio-mode action) 'insert))
+                (eq (emacsvox-aural-action-audio-mode action) 'overlay))
                (should
                 (equal
                  (emacsvox-aural-action-pitch action)

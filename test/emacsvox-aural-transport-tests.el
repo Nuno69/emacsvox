@@ -6592,7 +6592,7 @@ is the default inherited by a newly created TTS scratch buffer."
           (emacsvox-test--transport-adapter-command 'voice-bolden)))))))
 
 (ert-deftest emacsvox-aural-transport-indentation-compiles-at-source ()
-  "Line indentation facts freeze a rising tone without changing source text."
+  "Line indentation produces a pitch overlay without changing source text."
   (emacsvox-test--with-transport-scheme
     (emacsvox-test--transport-scheme nil)
     (let ((emacsvox-audio-indentation t)
@@ -6640,7 +6640,7 @@ is the default inherited by a newly created TTS scratch buffer."
                (append (plist-get envelope :actions) nil))))
         (should (eq (emacsvox-aural-concrete-action-kind action) 'tone))
         (should
-         (eq (emacsvox-aural-concrete-action-audio-mode action) 'insert))
+         (eq (emacsvox-aural-concrete-action-audio-mode action) 'overlay))
         (should
          (>
           (emacsvox-aural-concrete-action-pitch action)
@@ -6650,10 +6650,10 @@ is the default inherited by a newly created TTS scratch buffer."
           (emacsvox-aural-concrete-action-duration action)
           (emacsvox-speak--blank-line-tone-duration)))
         (should (equal (plist-get span :text) "value"))
-        (should (equal (plist-get wire-tone :mode) "insert"))))))
+        (should (equal (plist-get wire-tone :mode) "overlay"))))))
 
 (ert-deftest emacsvox-aural-transport-indentation-presents-once-across-runs ()
-  "Indentation presents once inside a whole-line, multi-face object."
+  "Indentation presents once across runs, with every tone sent as an overlay."
   (emacsvox-test--with-transport-scheme
     (emacsvox-test--transport-scheme nil)
     (dolist
@@ -6716,6 +6716,19 @@ is the default inherited by a newly created TTS scratch buffer."
            #'emacsvox-aural-concrete-action-kind
            (emacsvox-aural-concrete-plan-before (car plans)))
           (cadr case)))
+        (let* ((built
+                (emacsvox-aural--build-structured-timeline
+                 1 1
+                 (list (list (nth 0 plans) "self" nil)
+                       (list (nth 1 plans) "." nil)
+                       (list (nth 2 plans) "hash" nil))))
+               (tones
+                (seq-filter
+                 (lambda (action) (equal (plist-get action :type) "tone"))
+                 (plist-get (car built) :actions))))
+          (should (= (length tones) (if (eq presentation 'spoken) 0 1)))
+          (dolist (tone tones)
+            (should (equal (plist-get tone :mode) "overlay"))))
         (dolist (plan (cdr plans))
           (should-not (emacsvox-aural-concrete-plan-before plan)))))))
 
