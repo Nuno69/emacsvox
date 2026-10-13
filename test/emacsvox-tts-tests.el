@@ -1831,6 +1831,32 @@
     (should (equal (emacsvox-pronounce-get-dictionary 'review)
                    '(("word" . "spoken"))))))
 
+(ert-deftest emacsvox-tts-pronunciation-imports-headerless-dictionary-on-first-load ()
+  "A saved dictionary loads even when its warning needs fresh Lisp libraries."
+  (let ((file (make-temp-file "emacsvox-pronunciation-" nil ".el"))
+        (emacs (expand-file-name invocation-name invocation-directory)))
+    (unwind-protect
+        (progn
+          ;; Saved dictionaries have no lexical-binding header.  Use a fresh
+          ;; process so earlier warnings cannot hide a first-load failure.
+          (with-temp-file file
+            (insert "(emacsvox-pronounce-set-dictionary 'review '((\"word\" . \"spoken\")))\n"))
+          (with-temp-buffer
+            (let ((status
+                   (call-process
+                    emacs nil t nil "-Q" "--batch" "-L" emacsvox-lisp-directory
+                    "-l" "emacsvox-preamble"
+                    "--eval"
+                    (prin1-to-string
+                     `(progn
+                        (emacsvox-pronounce-load-dictionaries ,file)
+                        (unless (and emacsvox-pronounce-dictionaries-loaded
+                                     (equal (emacsvox-pronounce-get-dictionary 'review)
+                                            '(("word" . "spoken"))))
+                          (error "Saved pronunciation dictionary did not load")))))))
+              (unless (eq status 0) (ert-fail (buffer-string))))))
+      (delete-file file))))
+
 (ert-deftest emacsvox-tts-pronunciation-import-rejects-empty-literal-entries ()
   "Persisted invalid entries report their cause and leave the dictionary intact."
   (let ((file (make-temp-file "emacsvox-pronunciation-" nil ".el"))

@@ -321,11 +321,9 @@ Default is emacsvox-pronounce-dictionaries-file."
   (when (file-exists-p filename)
     (condition-case error-data
         (progn
-          ;; `ems--fastload' is defined in `emacsvox-preamble' which requires
-          ;; us, so we can't require it at top-level.
-          (require 'emacsvox-preamble)
-          (declare-function ems--fastload "emacsvox-preamble" (file))
-          (ems--fastload filename)
+          ;; Saved dictionaries have no lexical-binding header.  The normal
+          ;; source loader lets Emacs 31 warn without disrupting the read.
+          (load filename)
           (setq emacsvox-pronounce-dictionaries-loaded t))
       (error (message "Error loading pronunciation dictionary: %s"
                       (error-message-string error-data))))))
