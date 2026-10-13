@@ -629,7 +629,9 @@
                 (execute-kbd-macro (kbd "<down> <down> <up>"))
                 (should (= (length selections) 3))
                 (should (string-match-p "First action" (nth 0 selections)))
+                (should (string-match-p "Shortcut a\\." (nth 0 selections)))
                 (should (string-match-p "Second action" (nth 1 selections)))
+                (should (string-match-p "Shortcut b\\." (nth 1 selections)))
                 (should (string-match-p "First action" (nth 2 selections)))
                 (execute-kbd-macro (kbd "<down> <down>"))
                 (should (string-match-p "Other actions" (car selections)))
@@ -655,6 +657,35 @@
                  (lambda () (setq spoken t))))
         (should (eq (funcall wrapper (lambda (_) 'moved) 1) 'moved)))
       (should-not spoken))))
+
+(ert-deftest emacsvox-transient-choice-text-distinguishes-state-and-shortcut ()
+  "Switches, entered values, and destinations have self-contained spoken labels."
+  (let ((switch (transient-switch :command 'ignore :key "-n"
+                                  :description "Dry run" :argument "--dry-run"))
+        (option (transient-option :command 'ignore :key "-L"
+                                  :description "Limit" :argument "--limit="))
+        (destination (transient-suffix :command 'ignore :key "u"
+                                       :description "origin/master")))
+    (should (equal (emacsvox-transient--choice-text switch)
+                   "Dry run, off. Shortcut minus n."))
+    (oset switch value "--dry-run")
+    (should (equal (emacsvox-transient--choice-text switch)
+                   "Dry run, on. Shortcut minus n."))
+    (should (equal (emacsvox-transient--choice-text option)
+                   "Limit, not set. Shortcut minus capital L."))
+    (oset option value "5")
+    (should (equal (emacsvox-transient--choice-text option)
+                   "Limit, 5. Shortcut minus capital L."))
+    (should (equal (emacsvox-transient--choice-text destination "Push master to")
+                   "Push master to origin/master. Shortcut u."))
+    (oset destination inapt t)
+    (should (string-match-p "Unavailable" (emacsvox-transient--choice-text destination)))))
+
+(ert-deftest emacsvox-transient-key-text-preserves-case-and-prefixes ()
+  "Speech differentiates uppercase shortcuts and modifier sequences."
+  (should (equal (emacsvox-transient--key-text "-F") "minus capital F"))
+  (should (equal (emacsvox-transient--key-text "C-x C-s") "Control x Control s"))
+  (should (equal (emacsvox-transient--key-text "M-RET") "Alt Enter")))
 
 (ert-deftest emacsvox-transient-section-navigation-is-native ()
   "Section navigation presents the reached heading and its semantic identity."

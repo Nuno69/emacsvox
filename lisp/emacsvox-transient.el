@@ -260,6 +260,50 @@
      (emacsvox-transient--format-value
       (ignore-errors (oref object value))))))
 
+(defun emacsvox-transient--key-text (key)
+  "Describe KEY for speech, preserving modifiers and letter case."
+  (mapconcat
+   (lambda (event)
+     (let ((text (key-description (vector event)))
+           (case-fold-search nil)
+           modifiers)
+       (while (string-match "\\`\\([CMSsHA]\\)-" text)
+         (push (pcase (match-string 1 text)
+                 ("C" "Control") ("M" "Alt") ("S" "Shift")
+                 ("s" "Super") ("H" "Hyper") ("A" "Alt"))
+               modifiers)
+         (setq text (substring text 2)))
+       (string-join
+        (append (nreverse modifiers)
+                (list (cond ((equal text "-") "minus")
+                            ((equal text "RET") "Enter")
+                            ((equal text "SPC") "Space")
+                            ((string-match-p "\\`[A-Z]\\'" text)
+                             (concat "capital " text))
+                            (t text))))
+        " ")))
+   (kbd key) " "))
+
+(defun emacsvox-transient--choice-text (object &optional group)
+  "Describe suffix OBJECT, its state and shortcut, with optional GROUP context."
+  (when (and (eieio-object-p object) (object-of-class-p object 'transient-suffix))
+    (let* ((description (transient-with-shadowed-buffer
+                         (transient-format-description object)))
+           (infix (object-of-class-p object 'transient-infix))
+           (label (if (and group (not infix)
+                           (not (string-prefix-p group description t)))
+                      (concat group " " description)
+                    description)))
+      (concat
+       label
+       (when infix
+         (concat ", " (if (object-of-class-p object 'transient-switch)
+                          (if (oref object value) "on" "off")
+                        (emacsvox-transient--format-value (oref object value) "not set"))))
+       ". "
+       (when (oref object inapt) "Unavailable. ")
+       "Shortcut " (emacsvox-transient--key-text (oref object key)) "."))))
+
 (defun emacsvox--advice-transient-infix-set-after (object _value)
   "Present an interactively changed Transient infix OBJECT."
   (let ((target ems--interactive-fn-name))
@@ -705,7 +749,12 @@ DIRECTION is positive for forward movement, negative for backward movement."
          (concat wrap
                  (when (and section (or wrap (not (equal section old-section))))
                    (concat (emacsvox-transient--section-text section sections) " "))
-                 (emacsvox-aural-source-substring start end))
+                 (or (emacsvox-transient--choice-text
+                      (button-get button 'button-data)
+                      (when section
+                        (string-trim (emacsvox-aural-source-substring
+                                      (car section) (cdr section)))))
+                     (emacsvox-aural-source-substring start end)))
          (emacsvox-transient--item-facts 'command 'focus-button 'focus-entered '(selected))
          'navigation 'button)))))
 
