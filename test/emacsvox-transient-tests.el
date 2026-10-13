@@ -57,6 +57,7 @@
     (transient-prefix-set :after
                           emacsvox--advice-transient-prefix-set-after)
     (transient--show :after emacsvox--advice-transient--show-after)
+    (transient--show-hint :around emacsvox--advice-transient--show-hint-around)
     (transient-suspend :around
                        emacsvox--advice-transient-suspend-around)
     (transient-backward-button
@@ -333,6 +334,53 @@
             (emacsvox-aural-compatibility-action-value action)
             'open-object)))))))
 
+(ert-deftest emacsvox-transient-hint-keeps-visual-text-without-message-speech ()
+  "Only the automatic shortcut hint suppresses notification speech."
+  (let ((emacsvox-speak-messages t)
+        (transient-show-menu 1)
+        (transient--prefix (transient-prefix :command 'ignore))
+        (transient--suffixes nil)
+        messages)
+    (cl-letf (((symbol-function 'message)
+               (lambda (format-string &rest arguments)
+                 (let ((text (apply #'format format-string arguments)))
+                   (push (cons text emacsvox-speak-messages) messages)
+                   text))))
+      (should (string-match-p "ignore" (transient--show-hint)))
+      (message "Push failed: remote unavailable"))
+    (should (equal (car messages) '("Push failed: remote unavailable" . t)))
+    (should-not (cdr (cadr messages)))
+    (should emacsvox-speak-messages)))
+
+(ert-deftest emacsvox-transient-opening-explains-menu-navigation-once ()
+  "Opening a menu gives its purpose and navigation, without reading all options."
+  (save-window-excursion
+    (with-temp-buffer
+      (insert "Arguments\n-f Force with lease\np Push branch\n")
+      (goto-char (point-min))
+      (set-window-buffer (selected-window) (current-buffer))
+      (let ((transient--window (selected-window))
+            (transient--prefix (transient-prefix :command 'ignore))
+            (emacsvox-transient--announced-prefix nil)
+            (emacsvox-transient--announced-stack nil)
+            submissions)
+        (cl-letf (((symbol-function 'documentation)
+                   (lambda (&rest _) "Push to another repository.\nMore detail."))
+                  ((symbol-function 'emacsvox-aural-submit)
+                   (lambda (content &rest _)
+                     (push content submissions))))
+          (emacsvox--advice-transient--show-after)
+          (emacsvox--advice-transient--show-after))
+        (should (= (length submissions) 1))
+        (let ((spoken (car submissions)))
+          (should (string-match-p "Push to another repository" spoken))
+          (should (string-match-p "Up and down" spoken))
+          (should (string-match-p "Control J" spoken))
+          (should (string-match-p "Control G" spoken))
+          (should (string-match-p "Arguments" spoken))
+          (should-not (string-match-p "Force with lease\\|More detail" spoken)))
+        (should (string-match-p "Force with lease" emacsvox-transient-cache))))))
+
 (ert-deftest emacsvox-transient-show-deduplicates-menu-redisplay ()
   "Redrawing one live menu refreshes the cache without repeating feedback."
   (save-window-excursion
@@ -536,7 +584,7 @@
         (should
          (equal
           (caar submissions)
-          "Choice"))
+          "Beginning of menu. Choice"))
         (should
          (equal
           (plist-get (cdar submissions) :facts)
@@ -545,6 +593,68 @@
             :command-menu-action focus-button
             :events (focus-entered)
             :states (selected))))))))
+
+(transient-define-prefix emacsvox-test--navigation-menu ()
+  "Choose a test action."
+  ["Actions"
+   ("a" "First action" ignore)
+   ("b" "Second action" ignore)]
+  ["Other actions"
+   ("c" "Third action" ignore)])
+
+(ert-deftest emacsvox-transient-arrow-keys-speak-through-command-wrappers ()
+  "Real arrow events speak each choice through Transient's command wrapper."
+  (skip-unless (display-graphic-p))
+  (save-window-excursion
+    (with-temp-buffer
+      (switch-to-buffer (current-buffer))
+      (use-local-map (make-sparse-keymap))
+      (local-set-key (kbd "<f8>") #'emacsvox-test--navigation-menu)
+      (let ((transient-show-menu 0)
+            (emacsvox-transient--announced-prefix nil)
+            (emacsvox-transient--announced-stack nil)
+            selections)
+        (cl-letf (((symbol-function 'emacsvox-aural-submit)
+                   (lambda (content &rest arguments)
+                     (when (eq (plist-get (plist-get arguments :facts)
+                                         :command-menu-action)
+                               'focus-button)
+                       (push (substring-no-properties content) selections))))
+                  ((symbol-function 'emacsvox-aural-submit-actions) #'ignore)
+                  ((symbol-function 'tts-stop) #'ignore))
+          (unwind-protect
+              (progn
+                (execute-kbd-macro (kbd "<f8>"))
+                (transient--show)
+                (execute-kbd-macro (kbd "<down> <down> <up>"))
+                (should (= (length selections) 3))
+                (should (string-match-p "First action" (nth 0 selections)))
+                (should (string-match-p "Second action" (nth 1 selections)))
+                (should (string-match-p "First action" (nth 2 selections)))
+                (execute-kbd-macro (kbd "<down> <down>"))
+                (should (string-match-p "Other actions" (car selections)))
+                (execute-kbd-macro (kbd "<down>"))
+                (should (string-match-p "Beginning of menu" (car selections)))
+                (should (string-match-p "First action" (car selections)))
+                (execute-kbd-macro (kbd "<up>"))
+                (should (string-match-p "End of menu" (car selections)))
+                (should (string-match-p "Third action" (car selections))))
+            (when transient--prefix
+              (execute-kbd-macro (kbd "C-g")))))))))
+
+(ert-deftest emacsvox-transient-button-lisp-calls-remain-silent ()
+  "A matching command name alone does not turn a Lisp call into navigation."
+  (dolist (command '(transient-forward-button transient-backward-button))
+    (let ((this-command command)
+          (ems--interactive-fn-name nil)
+          (wrapper (if (eq command 'transient-forward-button)
+                       #'emacsvox--advice-transient-forward-button-around
+                     #'emacsvox--advice-transient-backward-button-around))
+          spoken)
+      (cl-letf (((symbol-function 'emacsvox-transient--speak-button)
+                 (lambda () (setq spoken t))))
+        (should (eq (funcall wrapper (lambda (_) 'moved) 1) 'moved)))
+      (should-not spoken))))
 
 (ert-deftest emacsvox-transient-section-navigation-is-native ()
   "Section navigation presents the reached heading and its semantic identity."
@@ -563,7 +673,7 @@
                      (push (cons content arguments) submissions))))
           (emacsvox-transient-next-section))
         (should (= (length submissions) 1))
-        (should (equal (caar submissions) "Options"))
+        (should (equal (caar submissions) "Options. Section 1 of 1."))
         (should
          (equal
           (plist-get (cdar submissions) :facts)
@@ -572,6 +682,31 @@
             :command-menu-action next-section
             :events (focus-entered)
             :states (selected))))))))
+
+(ert-deftest emacsvox-transient-section-navigation-keeps-mixed-face-heading-whole ()
+  "Different formatting within a heading does not create extra section stops."
+  (save-window-excursion
+    (with-temp-buffer
+      (insert (propertize "Arguments" 'face 'transient-heading) "\nOption\n"
+              (propertize "Push " 'face 'transient-heading)
+              (propertize "master" 'face 'font-lock-variable-name-face)
+              (propertize " to" 'face '(transient-heading bold)) "\nDestination\n"
+              (propertize "Configure" 'face 'transient-heading) "\nSettings")
+      (goto-char (point-min))
+      (set-window-buffer (selected-window) (current-buffer))
+      (let ((transient--window (selected-window))
+            spoken)
+        (cl-letf (((symbol-function 'emacsvox-aural-submit)
+                   (lambda (text &rest _) (push (substring-no-properties text) spoken))))
+          (emacsvox-transient-next-section)
+          (emacsvox-transient-next-section)
+          (emacsvox-transient-previous-section)
+          (emacsvox-transient-previous-section))
+        (should (equal (nreverse spoken)
+                       '("Push master to. Section 2 of 3."
+                         "Configure. Section 3 of 3."
+                         "Push master to. Section 2 of 3."
+                         "Arguments. Section 1 of 3.")))))))
 
 (ert-deftest emacsvox-transient-section-boundary-is-presented ()
   "Section navigation provides semantic failure feedback at a boundary."
@@ -582,14 +717,14 @@
       (set-window-buffer (selected-window) (current-buffer))
       (let ((transient--window (selected-window))
             submissions)
-        (cl-letf (((symbol-function 'emacsvox-aural-submit-actions)
-                   (lambda (&rest arguments)
-                     (push arguments submissions))))
+        (cl-letf (((symbol-function 'emacsvox-aural-submit)
+                   (lambda (text &rest arguments)
+                     (push (cons text arguments) submissions))))
           (emacsvox-transient-next-section))
         (should (= (length submissions) 1))
         (should
          (equal
-          (plist-get (car submissions) :facts)
+          (plist-get (cdar submissions) :facts)
           '(:role command-menu-item
             :command-menu-item-kind section
             :command-menu-action next-section
@@ -716,7 +851,7 @@
                          (lambda (content &rest _)
                            (push content submissions))))
                 (emacsvox-transient-next-section))
-              (should (equal submissions '("Browse section")))
+              (should (equal submissions '("Browse section. Section 1 of 1.")))
               (should (eq (window-buffer (selected-window))
                           (current-buffer)))))
         (kill-buffer menu-buffer)))))
