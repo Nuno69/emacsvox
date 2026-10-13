@@ -5205,6 +5205,60 @@ Return speech events plus the target character.  DIRECTION is `forward' or
       '((icon item)
         (speak "Reject, choice 2 of 3. Press Return or n."))))))
 
+(ert-deftest emacsvox-agent-shell-permission-navigation-silences-duplicate-sensor-hints ()
+  "Permission navigation keeps the visual hint without a second speech stream."
+  (require 'emacsvox-advice)
+  (dolist (mode '(agent-shell-mode agent-shell-viewport-view-mode))
+    (dolist (case '(("TAB" nil "Allow" "y" 1)
+                    ("<backtab>" t "Always Allow" "!" 3)))
+      (save-window-excursion
+        (with-temp-buffer
+          (switch-to-buffer (current-buffer))
+          (insert "before\n")
+          (emacsvox-agent-shell-test--insert-permission-buttons)
+          (insert "\nafter\n")
+          (setq major-mode mode)
+          (use-local-map (if (eq mode 'agent-shell-mode) agent-shell-mode-map
+                          agent-shell-viewport-view-mode-map))
+          (setq emacsvox-agent-shell--speech-control-active t)
+          (cursor-sensor-mode 1)
+          (emacsvox-agent-shell--vertical-toggle-hint-setup)
+          (setq-local ems--message-filter "Decrypting")
+          (goto-char (if (nth 1 case) (point-max) (point-min)))
+          (cursor-sensor--detect)
+          (let ((emacsvox-speak-messages t)
+                (emacsvox-last-message "")
+                (inhibit-message nil)
+                (real-message (symbol-function 'message))
+                (real-current-message (symbol-function 'current-message))
+                echoed events)
+            (setq events
+                  (emacsvox-agent-shell-test--capture-events
+                    (cl-letf (((symbol-function 'current-message)
+                               (lambda () (if (display-graphic-p)
+                                              (funcall real-current-message)
+                                            echoed)))
+                              ((symbol-function 'message)
+                               (lambda (&rest arguments)
+                                 (if (display-graphic-p)
+                                     (let ((executing-kbd-macro nil))
+                                       (apply real-message arguments)
+                                       (setq echoed (funcall real-current-message)))
+                                   (emacsvox--message-around
+                                    (lambda (format-string &rest args)
+                                      (setq echoed (apply #'format-message format-string args)))
+                                    arguments))))
+                              ((symbol-function 'set-transient-map) #'ignore))
+                      (execute-kbd-macro (kbd (car case)))
+                      (should (equal echoed (format "Press RET or %s to %s" (nth 3 case) (nth 2 case))))
+                      (should (equal ems--message-filter "Decrypting"))
+                      (message "Agent needs approval"))))
+            (should (equal (seq-filter (lambda (event) (eq (car event) 'notify)) events)
+                           '((notify "Agent needs approval"))))
+            (should (equal (seq-filter (lambda (event) (eq (car event) 'speak)) events)
+                           (list (list 'speak (format "%s, choice %d of 3. Press Return or %s."
+                                                     (nth 2 case) (nth 4 case) (nth 3 case))))))))))))
+
 (ert-deftest emacsvox-agent-shell-permission-and-item-feedback-is-native ()
   "Permission choices and ordinary item moves use native submissions."
   (with-temp-buffer

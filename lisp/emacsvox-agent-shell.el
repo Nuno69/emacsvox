@@ -5956,6 +5956,10 @@ resulting configuration after the change."
       (when (string-match "\\`\\(.*\\) (\\([^()]+\\))\\'" text)
         (setq label (string-trim (match-string 1 text))
               key (match-string 2 text)))
+      ;; Keep the cursor sensor's echo-area hint, but speak the choice once.
+      (emacsvox-agent-shell--filter-message-through-post-command
+       (concat "\\`Press RET" (if key (concat " or " (regexp-quote key)) "")
+               " to " (regexp-quote label) "\\'"))
       (emacsvox-agent-shell--submit-text-feedback
        (format "%s, choice %d of %d. Press Return%s."
                label

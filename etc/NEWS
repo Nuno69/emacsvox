@@ -10,6 +10,12 @@ Maintained by Emacsvox Contributors.
 
 Released notes are preserved in [[file:NEWS-2026.10.0][NEWS for Emacsvox 2026.10.0]].
 
+** Clear permission choice speech in Agent Shell
+
+Tab and Shift-Tab speak each permission choice once. The cursor hint remains
+visible in the echo area without speaking over the choice on the notification
+stream. Other notifications remain audible.
+
 ** Announce the destination after closing an Agent Shell buffer
 
 Closing a buffer now waits for related buffer cleanup before announcing the
