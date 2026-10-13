@@ -1699,8 +1699,23 @@ BEGINNING, END, and ARGUMENTS are passed to ORIGINAL unchanged."
  'find-file :after #'emacsvox--advice-find-file-after
  '((name . emacsvox)))
 
+(defun emacsvox--advice-kill-buffer-around (original &rest arguments)
+  "Announce the destination after ORIGINAL finishes killing a buffer.
+Consume the interactive marker before cleanup can kill related buffers."
+  (let* ((interactive (ems-interactive-p 'kill-buffer))
+         (result (apply original arguments)))
+    (when (and interactive result)
+      (emacsvox-icon 'close-object)
+      (tts-stop 'all)
+      (emacsvox-speak-mode-line))
+    result))
+
+(advice-add
+ 'kill-buffer :around #'emacsvox--advice-kill-buffer-around
+ '((name . emacsvox)))
+
 (emacsvox-advice--define-interactive-after-advice
-    (kill-buffer kill-current-buffer quit-window)
+    (kill-current-buffer quit-window)
     "Announce closing a buffer or window."
   (emacsvox-icon 'close-object)
   (tts-stop 'all)

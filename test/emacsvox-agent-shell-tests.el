@@ -1705,6 +1705,40 @@ Return speech events plus the target character.  DIRECTION is `forward' or
                 '(:answer "Safe answer" :in-progress nil))))
       (should (= rendered-calls 0)))))
 
+(ert-deftest emacsvox-agent-shell-kill-with-viewport-speaks-destination ()
+  "Real Agent Shell viewport cleanup must finish before focus is announced."
+  (require 'emacsvox-advice)
+  (save-window-excursion
+    (let* ((shell (generate-new-buffer "*Agent Shell kill test*"))
+           (viewport (get-buffer-create
+                      (concat (buffer-name shell) agent-shell-viewport--suffix)))
+           (destination (generate-new-buffer "*Agent Shell kill destination*"))
+           (emacsvox-comint-autospeak nil)
+           events)
+      (unwind-protect
+          (progn
+            (switch-to-buffer destination)
+            (setq-local mode-line-format "Destination after Agent Shell")
+            (switch-to-buffer shell)
+            (setq major-mode 'agent-shell-mode)
+            (setq-local agent-shell--state `((:buffer . ,shell) (:idle-timer))
+                        header-line-format "  ")
+            (add-hook 'kill-buffer-hook #'agent-shell--clean-up nil t)
+            (setq events
+                  (emacsvox-agent-shell-test--capture-events
+                    (should (funcall-interactively #'kill-buffer shell))))
+            (should-not (buffer-live-p shell))
+            (should-not (buffer-live-p viewport))
+            (should (eq (window-buffer (selected-window)) destination))
+            (should
+             (equal (seq-filter (lambda (event) (eq (car event) 'speak)) events)
+                    '((speak "destination after agent shell")))))
+        (dolist (buffer (list shell viewport destination))
+          (when (buffer-live-p buffer)
+            (with-current-buffer buffer
+              (remove-hook 'kill-buffer-hook #'agent-shell--clean-up t))
+            (kill-buffer buffer)))))))
+
 (ert-deftest emacsvox-agent-shell-speech-setup-preserves-package-header ()
   "Speech setup should not replace agent-shell's semantic header."
   (with-temp-buffer

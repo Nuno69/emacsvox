@@ -14,6 +14,63 @@
 (require 'emacsvox-speak)
 (require 'emacsvox-aural-provider-workflows)
 
+(ert-deftest emacsvox-core-kill-buffer-announces-destination-after-cleanup ()
+  "Nested cleanup kills must not announce the buffer still being closed."
+  (dolist (command '(kill-buffer kill-current-buffer))
+    (save-window-excursion
+      (let ((source (generate-new-buffer "*kill-source*"))
+            (helper (generate-new-buffer " *kill-helper*"))
+            (destination (generate-new-buffer "*kill-destination*"))
+            events)
+        (unwind-protect
+            (progn
+              (switch-to-buffer destination)
+              (switch-to-buffer source)
+              (add-hook 'kill-buffer-hook (lambda () (kill-buffer helper)) nil t)
+              (cl-letf (((symbol-function 'emacsvox-icon)
+                         (lambda (icon) (push icon events)))
+                        ((symbol-function 'tts-stop) #'ignore)
+                        ((symbol-function 'emacsvox-speak-mode-line)
+                         (lambda (&rest _)
+                           (push (window-buffer (selected-window)) events))))
+                (if (eq command 'kill-buffer)
+                    (should (funcall-interactively command source))
+                  (funcall-interactively command)))
+              (should-not (buffer-live-p source))
+              (should-not (buffer-live-p helper))
+              (should (eq (window-buffer (selected-window)) destination))
+              (should (equal (nreverse events) (list 'close-object destination))))
+          (dolist (buffer (list source helper destination))
+            (when (buffer-live-p buffer) (kill-buffer buffer))))))))
+
+(ert-deftest emacsvox-core-kill-buffer-cancellation-and-internal-kills-are-silent ()
+  "Cancelled and programmatic kills must not announce a buffer close."
+  (save-window-excursion
+    (let ((source (generate-new-buffer "*kill-cancelled*"))
+          (helper (generate-new-buffer " *kill-query-helper*"))
+          events)
+      (unwind-protect
+          (progn
+            (switch-to-buffer source)
+            (add-hook 'kill-buffer-query-functions
+                      (lambda () (kill-buffer helper) nil) nil t)
+            (cl-letf (((symbol-function 'emacsvox-icon)
+                       (lambda (icon) (push icon events)))
+                      ((symbol-function 'tts-stop) #'ignore)
+                      ((symbol-function 'emacsvox-speak-mode-line)
+                       (lambda (&rest _) (push 'speech events))))
+              (should-not (funcall-interactively #'kill-buffer source))
+              (should (buffer-live-p source))
+              (should-not (buffer-live-p helper))
+              (should-not events)
+              (setq-local kill-buffer-query-functions nil)
+              (should (kill-buffer source))
+              (should-not events)))
+        (dolist (buffer (list source helper))
+          (when (buffer-live-p buffer)
+            (with-current-buffer buffer (setq kill-buffer-query-functions nil))
+            (kill-buffer buffer)))))))
+
 (ert-deftest emacsvox-core-word-and-character-movement-use-navigation ()
   "Real movement commands label their output without changing direct reading."
   (with-temp-buffer
@@ -120,7 +177,7 @@
     forward-page backward-page
     scroll-other-window scroll-other-window-up scroll-other-window-down
     scroll-up scroll-down scroll-up-command scroll-down-command
-    kill-buffer kill-current-buffer quit-window
+    kill-current-buffer quit-window
     other-frame other-window
     next-window-any-frame previous-window-any-frame
     switch-to-prev-buffer switch-to-next-buffer
@@ -137,7 +194,8 @@
   "Core commands migrated with generated native before advice.")
 
 (defconst emacsvox-test--core-direct-advice
-  '((delete-forward-char :around emacsvox--advice-delete-forward-char-around)
+  '((kill-buffer :around emacsvox--advice-kill-buffer-around)
+    (delete-forward-char :around emacsvox--advice-delete-forward-char-around)
     (delete-char :around emacsvox--advice-delete-char-around)
     (backward-delete-char :around emacsvox--advice-backward-delete-char-around)
     (backward-delete-char-untabify :around
@@ -904,9 +962,9 @@
                (lambda (stream) (push (list 'stop stream) events)))
               ((symbol-function 'emacsvox-speak-mode-line)
                (lambda () (push 'speak-mode-line events))))
-      (emacsvox--advice-kill-buffer-after)
+      (emacsvox--advice-kill-buffer-around (lambda () t))
       ;; The explicit interactive marker is consumed after one response.
-      (emacsvox--advice-kill-buffer-after))
+      (emacsvox--advice-kill-buffer-around (lambda () t)))
     (should
      (equal
       (nreverse events)

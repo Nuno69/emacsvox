@@ -9,3 +9,9 @@ Maintained by Emacsvox Contributors.
 * Emacsvox Unreleased --- Current User-Visible Changes
 
 Released notes are preserved in [[file:NEWS-2026.10.0][NEWS for Emacsvox 2026.10.0]].
+
+** Announce the destination after closing an Agent Shell buffer
+
+Closing a buffer now waits for related buffer cleanup before announcing the
+newly selected buffer. This prevents Agent Shell cleanup from speaking the
+name of the buffer being closed. Cancelled kills do not announce a close.
